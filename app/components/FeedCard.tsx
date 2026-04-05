@@ -142,7 +142,7 @@ function CustomVideoPlayer({ src, onMaximize }: { src: string, onMaximize?: () =
   );
 }
 
-function PostMediaCarousel({ media }: { media: { file: string; media_type: string }[] }) {
+function PostMediaCarousel({ media, postHref }: { media: { file: string; media_type: string }[]; postHref?: string }) {
   const [activeIndex, setActiveIndex] = useState(0);
   const [lightboxMedia, setLightboxMedia] = useState<{src: string, type: string} | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -168,12 +168,20 @@ function PostMediaCarousel({ media }: { media: { file: string; media_type: strin
             <div key={i} className={`w-full shrink-0 snap-center relative bg-surface-container ${media.length > 1 ? 'aspect-[4/5] sm:aspect-[1/1] md:aspect-[4/5] max-h-[650px]' : ''}`}>
               {item.media_type === "video" ? (
                 <CustomVideoPlayer src={item.file} onMaximize={() => setLightboxMedia({ src: item.file, type: "video" })} />
+              ) : postHref ? (
+                <Link href={postHref} className={`block w-full h-full ${media.length === 1 ? 'max-h-[700px] min-h-[300px]' : ''}`}>
+                  <img
+                    src={item.file}
+                    alt={`Media ${i + 1}`}
+                    className="w-full h-full object-cover cursor-pointer"
+                  />
+                </Link>
               ) : (
-                <img 
-                  src={item.file} 
-                  alt={`Media ${i + 1}`} 
+                <img
+                  src={item.file}
+                  alt={`Media ${i + 1}`}
                   onClick={() => setLightboxMedia({ src: item.file, type: "image" })}
-                  className={`w-full h-full object-cover cursor-zoom-in ${media.length === 1 ? 'max-h-[700px] min-h-[300px]' : ''}`} 
+                  className={`w-full h-full object-cover cursor-zoom-in ${media.length === 1 ? 'max-h-[700px] min-h-[300px]' : ''}`}
                 />
               )}
             </div>
@@ -507,7 +515,7 @@ export default function FeedCard({
       {(() => {
         const media = post.media && post.media.length > 0 ? post.media : post.image ? [{ file: post.image, media_type: "image" }] : [];
         if (media.length === 0) return null;
-        return <PostMediaCarousel media={media} />;
+        return <PostMediaCarousel media={media} postHref={`/${post.type === "prayer" ? "prayer" : "post"}/${post.id}`} />;
       })()}
 
       <div className="flex items-center justify-between pt-4 border-t border-outline-variant/10" ref={openReactionId === post.id ? reactionRef : undefined}>

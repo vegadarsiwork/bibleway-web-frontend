@@ -6,7 +6,8 @@ import { ChatProvider } from "./lib/ChatContext";
 import { ThemeProvider } from "./lib/ThemeContext";
 import QueryProvider from "./lib/QueryProvider";
 import { ToastProvider } from "./components/Toast";
-import { Analytics } from "@vercel/analytics/next";
+import { Analytics } from "@vercel/analytics/react";
+import { SpeedInsights } from "@vercel/speed-insights/next";
 
 const playfair = Playfair_Display({
   subsets: ["latin"],
@@ -45,6 +46,7 @@ export default function RootLayout({
       <body className="bg-surface text-on-surface font-body antialiased">
         <QueryProvider><ThemeProvider><ToastProvider><I18nProvider><ChatProvider>{children}</ChatProvider></I18nProvider></ToastProvider></ThemeProvider></QueryProvider>
         <Analytics />
+        <SpeedInsights />
       </body>
     </html>
   );

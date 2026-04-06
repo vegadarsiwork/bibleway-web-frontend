@@ -260,13 +260,11 @@ export default function FeedCard({
     if (!openMenu) return;
     function handleClickOutside(e: MouseEvent) {
       if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
-        e.preventDefault();
-        e.stopPropagation();
         setOpenMenu(false);
       }
     }
-    document.addEventListener("mousedown", handleClickOutside, true);
-    return () => document.removeEventListener("mousedown", handleClickOutside, true);
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
   }, [openMenu]);
 
   async function loadComments() {

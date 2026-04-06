@@ -42,8 +42,12 @@ export default function AuthGuard({ children }: { children: React.ReactNode }) {
     }
   }, [hasToken, pathname, router]);
 
-  // Still checking — render children without overlay to avoid flash
-  if (hasToken === null) return <>{children}</>;
+  // Still checking — show nothing to prevent flash of authenticated content
+  if (hasToken === null) return (
+    <div className="min-h-screen bg-surface flex items-center justify-center">
+      <div className="w-8 h-8 border-2 border-primary/30 border-t-primary rounded-full animate-spin" />
+    </div>
+  );
 
   // Redirect in progress for home page
   if (hasToken === false && pathname === "/") return null;

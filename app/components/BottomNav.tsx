@@ -62,7 +62,7 @@ export default function BottomNav() {
             >
               {link.icon}
             </span>
-            <span className="font-sans uppercase tracking-widest text-[10px] font-bold mt-1">
+            <span className="font-sans uppercase tracking-wide text-[9px] font-bold mt-1">
               {link.label}
             </span>
           </Link>
@@ -80,11 +80,11 @@ export default function BottomNav() {
           <span className="material-symbols-outlined" style={moreActive ? { fontVariationSettings: "'FILL' 1" } : undefined}>
             menu
           </span>
-          <span className="font-sans uppercase tracking-widest text-[10px] font-bold mt-1">{t("nav.more", "More")}</span>
+          <span className="font-sans uppercase tracking-wide text-[9px] font-bold mt-1">{t("nav.more", "More")}</span>
         </button>
 
         {moreOpen && (
-          <div className="absolute bottom-full right-0 mb-3 w-56 bg-surface-container-lowest rounded-2xl shadow-xl border border-outline-variant/20 overflow-hidden z-50 max-h-[70vh] overflow-y-auto">
+          <div className="absolute bottom-full right-0 mb-3 w-56 max-w-[calc(100vw-2rem)] bg-surface-container-lowest rounded-2xl shadow-xl border border-outline-variant/20 overflow-hidden z-50 max-h-[70vh] overflow-y-auto">
             {/* Language */}
             <div className="px-3 py-2">
               <p className="text-[10px] font-bold uppercase tracking-widest text-on-surface-variant/50 px-1 mb-1">Language</p>

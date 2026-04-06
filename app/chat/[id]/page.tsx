@@ -386,7 +386,7 @@ export default function ChatConversationPage() {
                 </div>
               )}
 
-              <div className={`flex flex-col ${group.isOwn ? "items-end" : "items-start"} max-w-[80%] min-w-0 overflow-hidden`}>
+              <div className={`flex flex-col ${group.isOwn ? "items-end" : "items-start"} max-w-[85%] sm:max-w-[80%] min-w-0 overflow-hidden`}>
                 {/* Sender name for non-own messages */}
                 {!group.isOwn && (
                   <p className="text-[11px] font-semibold text-on-surface-variant/60 mb-1 ml-1">

@@ -124,7 +124,7 @@ export default function ShopPage() {
 
         {/* Product Grid */}
         {loading ? (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-8">
             {[1, 2, 3, 4, 5, 6, 7, 8].map((i) => (
               <div key={i} className="flex flex-col">
                 <Shimmer className="aspect-[3/4] mb-6 w-full" />
@@ -140,7 +140,7 @@ export default function ShopPage() {
             ))}
           </div>
         ) : (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8 stagger-children">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-8 stagger-children">
             {filteredProducts.length > 0 ? (
               filteredProducts.map((product, i) => (
                 <Link

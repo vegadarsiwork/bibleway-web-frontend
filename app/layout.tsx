@@ -6,7 +6,7 @@ import { ChatProvider } from "./lib/ChatContext";
 import { ThemeProvider } from "./lib/ThemeContext";
 import QueryProvider from "./lib/QueryProvider";
 import { ToastProvider } from "./components/Toast";
-import { Analytics } from "@vercel/analytics/react";
+import { Analytics } from "@vercel/analytics/next";
 
 const playfair = Playfair_Display({
   subsets: ["latin"],

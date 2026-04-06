@@ -205,7 +205,7 @@ export default function SettingsPage() {
               <div className="space-y-2">
                 {LANGUAGES.map((l) => (
                   <button key={l.code} onClick={() => setLanguage(l.code)} className={`w-full text-left px-4 py-3 rounded-xl text-sm transition-all flex items-center justify-between ${language === l.code ? "bg-primary/10 text-primary font-semibold" : "hover:bg-surface-container-high text-on-surface"}`}>
-                    {l.name}
+                    <span className="flex items-center gap-3"><img src={`https://flagcdn.com/w40/${l.countryCode}.png`} alt={l.short} className="w-5 h-4 rounded-sm object-cover" />{l.name}</span>
                     {language === l.code && <span className="material-symbols-outlined text-sm">check</span>}
                   </button>
                 ))}

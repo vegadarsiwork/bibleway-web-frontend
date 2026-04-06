@@ -7,6 +7,7 @@ import StickerPicker, { STICKERS } from "./StickerPicker";
 import { containsProfanity, getProfanityWarning } from "../lib/contentFilter";
 import { useToast } from "./Toast";
 import { useTranslation } from "../lib/i18n";
+import { translateText } from "../lib/translate";
 
 interface MediaItem {
   id?: string;
@@ -230,7 +231,9 @@ export default function FeedCard({
   animatingReaction, openReactionId, setOpenReactionId, reactionRef,
 }: FeedCardProps) {
   const { showToast } = useToast();
-  const { t } = useTranslation();
+  const { t, locale } = useTranslation();
+  const [translatedContent, setTranslatedContent] = useState<string | null>(null);
+  const [isTranslating, setIsTranslating] = useState(false);
   const [showComments, setShowComments] = useState(false);
   const [comments, setComments] = useState<any[]>([]);
   const [commentsLoading, setCommentsLoading] = useState(false);
@@ -426,8 +429,38 @@ export default function FeedCard({
     return <>{text}</>;
   }
 
+  async function handleTranslate() {
+    if (translatedContent) { setTranslatedContent(null); return; }
+    setIsTranslating(true);
+    try {
+      const result = await translateText(localContent, locale);
+      setTranslatedContent(result);
+    } catch {
+      showToast("error", "Error", "Translation failed.");
+    } finally {
+      setIsTranslating(false);
+    }
+  }
+
   function renderPostContent(text: string, type: string) {
-    return <p className={`text-on-surface leading-relaxed mb-6 ${type === "prayer" ? "italic text-xl" : "text-lg"}`}>{text}</p>;
+    const displayText = translatedContent || text;
+    return (
+      <>
+        <p className={`text-on-surface leading-relaxed ${type === "prayer" ? "italic text-xl" : "text-lg"} ${translatedContent ? "mb-1" : "mb-6"}`}>{displayText}</p>
+        {translatedContent && (
+          <p className="text-xs text-on-surface-variant/50 italic mb-3">{t("common.translationDisclaimer", "Auto-translated · May not be accurate")}</p>
+        )}
+        {locale !== "en" && (
+          <button
+            onClick={(e) => { e.preventDefault(); e.stopPropagation(); handleTranslate(); }}
+            disabled={isTranslating}
+            className="text-xs text-primary/70 hover:text-primary font-medium mb-4 block transition-colors disabled:opacity-50"
+          >
+            {isTranslating ? t("common.translating", "Translating...") : translatedContent ? t("common.showOriginal", "Show Original") : t("common.translate", "Translate")}
+          </button>
+        )}
+      </>
+    );
   }
 
   const userReactionEmoji = post.userReaction ? REACTIONS.find((r) => r.type === post.userReaction)?.emoji : null;

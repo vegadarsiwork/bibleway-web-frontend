@@ -37,7 +37,13 @@ export default function DownloadsPage() {
         res.data?.download_url ||
         res.download_url;
       if (url) {
-        window.open(url, "_blank");
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = "";
+        a.rel = "noopener";
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
       } else {
         showToast("error", "Download Error", "Download not available.");
       }

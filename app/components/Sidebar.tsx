@@ -69,11 +69,11 @@ export default function Sidebar({ collapsed }: SidebarProps) {
   return (
     <>
       <aside
-        className={`hidden md:flex flex-col fixed left-0 top-16 h-[calc(100vh-4rem)] pt-6 pb-8 bg-surface-container z-40 overflow-y-auto overflow-x-hidden transition-all duration-300 ease-in-out border-r border-outline-variant/10 ${
+        className={`hidden md:flex flex-col fixed left-0 top-16 h-[calc(100vh-4rem)] pt-6 pb-8 bg-surface-container z-40 transition-all duration-300 ease-in-out border-r border-outline-variant/10 ${
           isCollapsed ? "w-[72px]" : "lg:w-64 w-[72px]"
         }`}
       >
-        <div className={`mb-8 transition-all duration-300 ${isCollapsed ? "px-2" : "px-6"}`}>
+        <div className={`mb-8 overflow-y-auto overflow-x-hidden flex-1 min-h-0 transition-all duration-300 ${isCollapsed ? "px-2" : "px-6"}`}>
           {!isCollapsed && (
             <h3 className="hidden lg:block text-xs font-label uppercase tracking-[0.2em] text-on-surface-variant/60 mb-6 transition-opacity duration-200">
               {t("nav.navigation", "Navigation")}
@@ -127,12 +127,12 @@ export default function Sidebar({ collapsed }: SidebarProps) {
                 isCollapsed ? "justify-center px-2" : "pl-5"
               }`}
             >
-              <span className="text-xs font-bold shrink-0 bg-surface-container-high rounded px-1.5 py-0.5">{currentLang.short}</span>
+              <img src={`https://flagcdn.com/w40/${currentLang.countryCode}.png`} alt={currentLang.short} className="w-5 h-4 rounded-sm object-cover shrink-0" />
               {!isCollapsed && <span className="hidden lg:inline text-sm font-medium">{currentLang.label}</span>}
             </button>
             {langOpen && (
-              <div className={`absolute bottom-full mb-2 bg-surface-container-lowest rounded-xl shadow-xl border border-outline-variant/20 z-50 overflow-hidden ${
-                isCollapsed ? "left-full ml-2 w-44" : "left-0 right-0"
+              <div className={`absolute bottom-full mb-2 bg-surface-container-lowest rounded-xl shadow-xl border border-outline-variant/20 z-50 overflow-hidden max-h-[60vh] overflow-y-auto ${
+                isCollapsed ? "left-full ml-2 w-48" : "left-0 right-0"
               }`}>
                 {LANGUAGES.map((lang) => (
                   <button
@@ -144,7 +144,7 @@ export default function Sidebar({ collapsed }: SidebarProps) {
                         : "text-on-surface hover:bg-surface-container-low"
                     }`}
                   >
-                    <span className="text-xs font-bold bg-surface-container-high rounded px-1.5 py-0.5 shrink-0">{lang.short}</span>
+                    <img src={`https://flagcdn.com/w40/${lang.countryCode}.png`} alt={lang.short} className="w-5 h-4 rounded-sm object-cover shrink-0" />
                     <span>{lang.label}</span>
                     {locale === lang.code && <span className="material-symbols-outlined text-[16px] ml-auto">check</span>}
                   </button>

@@ -84,7 +84,7 @@ export default function BottomNav() {
         </button>
 
         {moreOpen && (
-          <div className="absolute bottom-full right-0 mb-3 w-56 bg-surface-container-lowest rounded-2xl shadow-xl border border-outline-variant/20 overflow-hidden z-50">
+          <div className="absolute bottom-full right-0 mb-3 w-56 bg-surface-container-lowest rounded-2xl shadow-xl border border-outline-variant/20 overflow-hidden z-50 max-h-[70vh] overflow-y-auto">
             {/* Language */}
             <div className="px-3 py-2">
               <p className="text-[10px] font-bold uppercase tracking-widest text-on-surface-variant/50 px-1 mb-1">Language</p>
@@ -96,7 +96,7 @@ export default function BottomNav() {
                     className={`px-2 py-1 rounded-lg transition-colors text-xs font-bold ${locale === lang.code ? "bg-primary/15 text-primary ring-1 ring-primary/30" : "text-on-surface-variant hover:bg-surface-container-high"}`}
                     title={lang.label}
                   >
-                    {lang.short}
+                    <img src={`https://flagcdn.com/w40/${lang.countryCode}.png`} alt={lang.short} className="w-4 h-3 rounded-sm object-cover inline-block" />
                   </button>
                 ))}
               </div>

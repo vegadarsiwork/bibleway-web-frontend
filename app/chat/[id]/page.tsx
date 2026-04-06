@@ -40,7 +40,8 @@ export default function ChatConversationPage() {
   const typing = typingUsers[convId] || [];
   const currentConv = conversations.find(c => c.id === convId);
   const [fetchedOtherUser, setFetchedOtherUser] = useState<{ id: string; full_name: string; profile_photo: string | null } | null>(null);
-  const otherUser = currentConv?.other_user || fetchedOtherUser;
+  // Prefer fetched data (always fresh) over conversations list (may be stale/empty)
+  const otherUser = fetchedOtherUser || currentConv?.other_user || null;
 
   useEffect(() => {
     if (convId) {
@@ -53,13 +54,12 @@ export default function ChatConversationPage() {
   // Always fetch conversation details to get the other user's name
   // (conversations list may not be loaded when navigating from notifications/profile)
   useEffect(() => {
-    if (convId && !fetchedOtherUser) {
-      fetchAPI(`/chat/conversations/${convId}/`).then(res => {
-        const conv = res?.data || res;
-        if (conv?.other_user) setFetchedOtherUser(conv.other_user);
-      }).catch(() => {});
-    }
-  }, [convId, fetchedOtherUser]);
+    if (!convId) return;
+    fetchAPI(`/chat/conversations/${convId}/`).then(res => {
+      const conv = res?.data || res;
+      if (conv?.other_user) setFetchedOtherUser(conv.other_user);
+    }).catch(() => {});
+  }, [convId]);
 
   const [newMsgCount, setNewMsgCount] = useState(0);
   const prevMsgCountRef = useRef<number>(0);

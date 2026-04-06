@@ -117,7 +117,13 @@ export default function ProductDetailPage() {
       const res = await fetchAPI(`/shop/downloads/${productId}/`);
       const url = res.data?.url || res.url || res.data?.download_url || res.download_url;
       if (url) {
-        window.open(url, "_blank");
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = "";
+        a.rel = "noopener";
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
         showToast("success", "Downloading", "Your file is being downloaded.");
       } else {
         showToast("error", "Download Error", "Download not available.");

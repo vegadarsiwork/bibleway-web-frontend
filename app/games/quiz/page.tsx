@@ -167,7 +167,7 @@ export default function BibleQuizPage() {
     const isLastLevel = levelId >= QUIZ_LEVELS.length;
     return (
       <MainLayout>
-        <div className="max-w-md mx-auto px-4 sm:px-6 py-12 sm:py-16 text-center">
+        <div className="max-w-md mx-auto px-4 sm:px-6 pt-24 sm:pt-28 pb-12 text-center">
           <div className="w-20 h-20 rounded-full bg-primary/10 flex items-center justify-center mx-auto mb-4">
             <span className="material-symbols-outlined text-primary text-4xl">emoji_events</span>
           </div>

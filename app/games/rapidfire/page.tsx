@@ -1,17 +1,16 @@
 "use client";
 
-import { useState, useCallback, useMemo, useEffect, useRef } from "react";
+import { useState, useCallback, useEffect, useRef } from "react";
 import Link from "next/link";
 import MainLayout from "../../components/MainLayout";
-import {
-  LEVELS,
-  type LevelData,
-  type WordData,
-} from "../constants/crosswordLevels";
+import { LEVELS, type WordData } from "../constants/crosswordLevels";
 
 /* ------------------------------------------------------------------ */
-/*  Persistence helpers                                                */
+/*  Persistence                                                        */
 /* ------------------------------------------------------------------ */
+
+const LS_UNLOCKED = "rapidfire_unlocked_level";
+const LS_COMPLETED = "rapidfire_completed_levels";
 
 function getStorage(key: string): string | null {
   if (typeof window === "undefined") return null;
@@ -21,19 +20,19 @@ function setStorage(key: string, value: string) {
   if (typeof window !== "undefined") localStorage.setItem(key, value);
 }
 function loadUnlocked(): number {
-  const v = getStorage("crossword_unlocked_level");
+  const v = getStorage(LS_UNLOCKED);
   return v ? parseInt(v, 10) : 1;
 }
 function loadCompleted(): Set<number> {
   try {
-    return new Set(JSON.parse(getStorage("crossword_completed_levels") || "[]"));
+    return new Set(JSON.parse(getStorage(LS_COMPLETED) || "[]"));
   } catch {
     return new Set();
   }
 }
 
 /* ------------------------------------------------------------------ */
-/*  Types                                                              */
+/*  Types & helpers                                                    */
 /* ------------------------------------------------------------------ */
 
 interface LetterTile {
@@ -42,16 +41,13 @@ interface LetterTile {
   used: boolean;
 }
 
-interface CellInfo {
-  letter: string;
-  wordIndices: number[];
-}
-
-/* ------------------------------------------------------------------ */
-/*  Utility functions                                                  */
-/* ------------------------------------------------------------------ */
-
 const DISTRACTOR_POOL = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
+const SECONDS_PER_WORD = 15;
+const HINT_COST = 30;
+const BASE_WORD_POINTS = 100;
+const MIN_WORD_POINTS = 40;
+const TIME_BONUS_PER_SECOND = 2;
+const MAX_HINTS_PER_WORD = 2;
 
 function shuffle<T>(arr: T[]): T[] {
   const a = [...arr];
@@ -74,49 +70,11 @@ function makeBank(word: string): LetterTile[] {
   }));
 }
 
-function buildGridMap(level: LevelData): Map<string, CellInfo> {
-  const map = new Map<string, CellInfo>();
-  level.words.forEach((w, wi) => {
-    for (let i = 0; i < w.word.length; i++) {
-      const r = w.direction === "across" ? w.row : w.row + i;
-      const c = w.direction === "across" ? w.col + i : w.col;
-      const k = `${r}-${c}`;
-      const ex = map.get(k);
-      if (ex) ex.wordIndices.push(wi);
-      else map.set(k, { letter: w.word[i], wordIndices: [wi] });
-    }
-  });
-  return map;
-}
-
-function getGridBounds(gridMap: Map<string, CellInfo>): { minR: number; maxR: number; minC: number; maxC: number; rows: number; cols: number } {
-  let minR = Infinity, maxR = -Infinity, minC = Infinity, maxC = -Infinity;
-  for (const key of gridMap.keys()) {
-    const [r, c] = key.split("-").map(Number);
-    if (r < minR) minR = r;
-    if (r > maxR) maxR = r;
-    if (c < minC) minC = c;
-    if (c > maxC) maxC = c;
-  }
-  if (minR === Infinity) return { minR: 0, maxR: 0, minC: 0, maxC: 0, rows: 1, cols: 1 };
-  return { minR, maxR, minC, maxC, rows: maxR - minR + 1, cols: maxC - minC + 1 };
-}
-
-function getWordKeys(word: WordData): Set<string> {
-  const keys = new Set<string>();
-  for (let i = 0; i < word.word.length; i++) {
-    const r = word.direction === "across" ? word.row : word.row + i;
-    const c = word.direction === "across" ? word.col + i : word.col;
-    keys.add(`${r}-${c}`);
-  }
-  return keys;
-}
-
 /* ------------------------------------------------------------------ */
 /*  CSS keyframes (injected once)                                      */
 /* ------------------------------------------------------------------ */
 
-const KEYFRAMES_ID = "crossword-keyframes";
+const KEYFRAMES_ID = "rapidfire-keyframes";
 
 function injectKeyframes() {
   if (typeof document === "undefined") return;
@@ -124,7 +82,7 @@ function injectKeyframes() {
   const style = document.createElement("style");
   style.id = KEYFRAMES_ID;
   style.textContent = `
-    @keyframes cw-shake {
+    @keyframes rf-shake {
       0%, 100% { transform: translateX(0); }
       10% { transform: translateX(-8px); }
       20% { transform: translateX(8px); }
@@ -135,28 +93,39 @@ function injectKeyframes() {
       70% { transform: translateX(-2px); }
       80% { transform: translateX(2px); }
     }
-    @keyframes cw-pop {
+    @keyframes rf-pop {
       0% { transform: scale(1); }
       40% { transform: scale(1.08); }
       100% { transform: scale(1); }
     }
-    @keyframes cw-letter-in {
+    @keyframes rf-letter-in {
       0% { transform: scale(0.3); opacity: 0; }
       60% { transform: scale(1.1); opacity: 1; }
       100% { transform: scale(1); opacity: 1; }
     }
-    .cw-shake { animation: cw-shake 0.5s ease-in-out; }
-    .cw-pop   { animation: cw-pop 0.5s ease-out; }
-    .cw-letter-in { animation: cw-letter-in 0.2s ease-out; }
+    @keyframes rf-pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.55; }
+    }
+    .rf-shake { animation: rf-shake 0.5s ease-in-out; }
+    .rf-pop   { animation: rf-pop 0.5s ease-out; }
+    .rf-letter-in { animation: rf-letter-in 0.2s ease-out; }
+    .rf-pulse { animation: rf-pulse 1s ease-in-out infinite; }
   `;
   document.head.appendChild(style);
+}
+
+function formatTime(s: number): string {
+  const m = Math.floor(s / 60);
+  const sec = s % 60;
+  return `${m}:${sec.toString().padStart(2, "0")}`;
 }
 
 /* ------------------------------------------------------------------ */
 /*  Main component                                                     */
 /* ------------------------------------------------------------------ */
 
-export default function BibleCrosswordPage() {
+export default function RapidFirePage() {
   const [screen, setScreen] = useState<"levels" | "play" | "result">("levels");
   const [levelId, setLevelId] = useState(1);
   const [unlockedLevel, setUnlockedLevel] = useState(1);
@@ -171,165 +140,229 @@ export default function BibleCrosswordPage() {
   }, []);
 
   // Game state
-  const [solved, setSolved] = useState<Set<number>>(new Set());
   const [wordIdx, setWordIdx] = useState(0);
+  const [solvedCount, setSolvedCount] = useState(0);
   const [input, setInput] = useState<string[]>([]);
   const [bank, setBank] = useState<LetterTile[]>([]);
   const [feedback, setFeedback] = useState<"idle" | "correct" | "wrong">("idle");
   const [score, setScore] = useState(0);
-  const [hints, setHints] = useState(0);
-
-  const gridContainerRef = useRef<HTMLDivElement>(null);
-  const [gridWidth, setGridWidth] = useState(480);
-  const wordTabsRef = useRef<HTMLDivElement>(null);
+  const [hintsThisWord, setHintsThisWord] = useState(0);
+  const [timeLeft, setTimeLeft] = useState(0);
+  const [finalTimeLeft, setFinalTimeLeft] = useState(0);
+  const [didWin, setDidWin] = useState(false);
 
   const level = LEVELS[levelId - 1];
-  const gridMap = useMemo(() => level ? buildGridMap(level) : new Map(), [level]);
-  const word = level?.words[wordIdx];
-  const currKeys = useMemo(() => word ? getWordKeys(word) : new Set<string>(), [word]);
-  const bounds = useMemo(() => getGridBounds(gridMap), [gridMap]);
+  const word: WordData | undefined = level?.words[wordIdx];
 
   // Inject CSS keyframes on mount
-  useEffect(() => { injectKeyframes(); }, []);
-
-  // Measure grid container width for responsive cell sizing
   useEffect(() => {
-    if (screen !== "play" || !gridContainerRef.current) return;
-    const observer = new ResizeObserver((entries) => {
-      for (const entry of entries) {
-        setGridWidth(entry.contentRect.width);
-      }
-    });
-    observer.observe(gridContainerRef.current);
-    return () => observer.disconnect();
-  }, [screen]);
+    injectKeyframes();
+  }, []);
 
-  // Reset bank/input when word changes
+  /* ---- Timer ---- */
   useEffect(() => {
-    if (!word) return;
-    setBank(makeBank(word.word));
-    setInput([]);
-    setFeedback("idle");
-    setHints(0);
-  }, [wordIdx, levelId, word]);
+    if (screen !== "play") return;
+    if (timeLeft <= 0) return;
+    const t = setInterval(() => {
+      setTimeLeft((s) => s - 1);
+    }, 1000);
+    return () => clearInterval(t);
+  }, [screen, timeLeft]);
 
-  // Scroll active word tab into view
+  // Time-out → result
   useEffect(() => {
-    if (!wordTabsRef.current) return;
-    const active = wordTabsRef.current.querySelector("[data-active='true']");
-    if (active) active.scrollIntoView({ behavior: "smooth", block: "nearest", inline: "center" });
-  }, [wordIdx]);
+    if (screen !== "play") return;
+    if (timeLeft === 0) {
+      setFinalTimeLeft(0);
+      setDidWin(false);
+      setScreen("result");
+    }
+  }, [timeLeft, screen]);
 
   /* ---- Game actions ---- */
 
   const startLevel = useCallback((id: number) => {
+    const lv = LEVELS[id - 1];
+    if (!lv) return;
     setLevelId(id);
-    setSolved(new Set());
     setWordIdx(0);
+    setSolvedCount(0);
     setScore(0);
-    setHints(0);
+    setHintsThisWord(0);
     setFeedback("idle");
     setInput([]);
-    const lv = LEVELS[id - 1];
     setBank(makeBank(lv.words[0].word));
+    setTimeLeft(lv.words.length * SECONDS_PER_WORD);
+    setDidWin(false);
     setScreen("play");
   }, []);
 
-  const selectNextUnsolved = useCallback(
-    (currentSolved: Set<number>) => {
-      const lvl = LEVELS[levelId - 1];
-      for (let i = 0; i < lvl.words.length; i++) {
-        if (!currentSolved.has(i)) {
-          setWordIdx(i);
-          return;
-        }
-      }
-    },
-    [levelId]
-  );
+  // Reset bank/input when wordIdx changes (but not on level start — handled above)
+  const advanceToWord = useCallback((nextIdx: number) => {
+    const lv = LEVELS[levelId - 1];
+    if (!lv) return;
+    setWordIdx(nextIdx);
+    setBank(makeBank(lv.words[nextIdx].word));
+    setInput([]);
+    setHintsThisWord(0);
+    setFeedback("idle");
+  }, [levelId]);
 
   const tapTile = useCallback(
     (id: string, letter: string) => {
-      if (!word || input.length >= word.word.length) return;
+      if (!word) return;
+      if (feedback === "correct") return;
+      if (input.length >= word.word.length) return;
       setInput((p) => [...p, letter]);
       setBank((p) => p.map((t) => (t.id === id ? { ...t, used: true } : t)));
     },
-    [input.length, word]
+    [input.length, word, feedback]
+  );
+
+  // Keyboard-input flavor: pick the first unused tile matching this letter
+  const tapLetterByKey = useCallback(
+    (rawLetter: string) => {
+      if (!word) return;
+      if (feedback === "correct") return;
+      if (input.length >= word.word.length) return;
+      const letter = rawLetter.toUpperCase();
+      const tile = bank.find((t) => !t.used && t.letter === letter);
+      if (!tile) return;
+      setInput((p) => [...p, letter]);
+      setBank((p) =>
+        p.map((t) => (t.id === tile.id ? { ...t, used: true } : t))
+      );
+    },
+    [bank, input.length, word, feedback]
   );
 
   const deleteLast = useCallback(() => {
-    if (!input.length) return;
+    if (!input.length || feedback === "correct") return;
     const last = input[input.length - 1];
-    let done = false;
     setBank((p) => {
       const n = [...p];
       for (let i = n.length - 1; i >= 0; i--) {
-        if (n[i].used && n[i].letter === last && !done) {
+        if (n[i].used && n[i].letter === last) {
           n[i] = { ...n[i], used: false };
-          done = true;
           break;
         }
       }
       return n;
     });
     setInput((p) => p.slice(0, -1));
-  }, [input]);
+  }, [input, feedback]);
 
   const clearAll = useCallback(() => {
-    if (!input.length) return;
+    if (!input.length || feedback === "correct") return;
     setBank((p) => p.map((t) => ({ ...t, used: false })));
     setInput([]);
-  }, [input]);
+  }, [input, feedback]);
 
   const useHint = useCallback(() => {
-    if (!word) return;
+    if (!word || feedback === "correct") return;
     const next = input.length;
-    if (next >= word.word.length || hints >= 2) return;
+    if (next >= word.word.length || hintsThisWord >= MAX_HINTS_PER_WORD) return;
     const needed = word.word[next];
     const tile = bank.find((t) => !t.used && t.letter === needed);
     if (!tile) return;
-    setHints((h) => h + 1);
+    setHintsThisWord((h) => h + 1);
     tapTile(tile.id, tile.letter);
-  }, [input.length, word, bank, tapTile, hints]);
+  }, [input.length, word, bank, tapTile, hintsThisWord, feedback]);
 
   const checkAnswer = useCallback(() => {
     if (!word || input.length < word.word.length) return;
+    if (feedback === "correct") return;
     if (input.join("") === word.word) {
       setFeedback("correct");
-      const newSolved = new Set([...solved, wordIdx]);
-      setSolved(newSolved);
-      setScore((p) => p + Math.max(40, 100 - hints * 20));
+      const wordPoints = Math.max(
+        MIN_WORD_POINTS,
+        BASE_WORD_POINTS - hintsThisWord * HINT_COST
+      );
+      setScore((p) => p + wordPoints);
+      const newSolved = solvedCount + 1;
+      setSolvedCount(newSolved);
 
       setTimeout(() => {
-        if (newSolved.size >= level.words.length) {
-          // Level complete
+        if (newSolved >= level.words.length) {
+          // Level complete — bank time bonus & finalize
+          setFinalTimeLeft(timeLeft);
+          setScore((p) => p + timeLeft * TIME_BONUS_PER_SECOND);
+          setDidWin(true);
           setCompletedLevels((p) => {
             const next = new Set([...p, levelId]);
-            setStorage("crossword_completed_levels", JSON.stringify([...next]));
+            setStorage(LS_COMPLETED, JSON.stringify([...next]));
             return next;
           });
           if (levelId >= unlockedLevel) {
             const next = Math.min(levelId + 1, LEVELS.length);
             setUnlockedLevel(next);
-            setStorage("crossword_unlocked_level", String(next));
+            setStorage(LS_UNLOCKED, String(next));
           }
           setScreen("result");
         } else {
-          selectNextUnsolved(newSolved);
-          setFeedback("idle");
+          advanceToWord(wordIdx + 1);
         }
-      }, 900);
+      }, 500);
     } else {
       setFeedback("wrong");
-      setTimeout(() => setFeedback("idle"), 600);
+      setTimeout(() => {
+        // Wrong answer → clear and let them try again
+        setBank((p) => p.map((t) => ({ ...t, used: false })));
+        setInput([]);
+        setFeedback("idle");
+      }, 500);
     }
-  }, [input, word, wordIdx, level, levelId, hints, solved, unlockedLevel, selectNextUnsolved]);
+  }, [
+    input,
+    word,
+    wordIdx,
+    level,
+    levelId,
+    hintsThisWord,
+    solvedCount,
+    unlockedLevel,
+    timeLeft,
+    feedback,
+    advanceToWord,
+  ]);
+
+  /* ---- Keyboard handling (desktop) ---- */
+  useEffect(() => {
+    if (screen !== "play") return;
+    const onKey = (e: KeyboardEvent) => {
+      // Don't hijack typing in real form fields
+      const tag = (e.target as HTMLElement | null)?.tagName;
+      if (tag === "INPUT" || tag === "TEXTAREA") return;
+      if (e.metaKey || e.ctrlKey || e.altKey) return;
+
+      if (e.key === "Backspace") {
+        e.preventDefault();
+        deleteLast();
+        return;
+      }
+      if (e.key === "Enter") {
+        e.preventDefault();
+        checkAnswer();
+        return;
+      }
+      if (e.key === "Escape") {
+        e.preventDefault();
+        clearAll();
+        return;
+      }
+      if (/^[a-zA-Z]$/.test(e.key)) {
+        e.preventDefault();
+        tapLetterByKey(e.key);
+      }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [screen, deleteLast, checkAnswer, clearAll, tapLetterByKey]);
 
   /* ================================================================ */
   /*  LEVEL SELECT SCREEN                                              */
   /* ================================================================ */
 
-  // Wait for client-side hydration before rendering any game content
   if (!mounted) {
     return (
       <MainLayout>
@@ -356,16 +389,17 @@ export default function BibleCrosswordPage() {
             <span className="text-sm font-medium">Games</span>
           </Link>
           <h1 className="text-3xl font-headline text-on-surface mb-2">
-            Bible Crossword
+            Bible Rapid Fire
           </h1>
           <p className="text-on-surface-variant text-sm mb-6">
-            Solve crossword puzzles across 10 biblical themes
+            Beat the clock — answer all the clues before time runs out.
           </p>
 
           <div className="space-y-3">
             {LEVELS.map((lv) => {
               const locked = lv.id > unlockedLevel;
               const completed = completedLevels.has(lv.id);
+              const seconds = lv.words.length * SECONDS_PER_WORD;
               return (
                 <button
                   key={lv.id}
@@ -397,7 +431,7 @@ export default function BibleCrosswordPage() {
                   <div className="flex-1">
                     <p className="font-semibold text-on-surface">{lv.theme}</p>
                     <p className="text-xs text-on-surface-variant">
-                      {lv.title} &middot; {lv.words.length} words &middot; {lv.gridSize}&times;{lv.gridSize}
+                      {lv.words.length} questions &middot; {formatTime(seconds)}
                     </p>
                   </div>
                   {!locked && (
@@ -415,41 +449,61 @@ export default function BibleCrosswordPage() {
   }
 
   /* ================================================================ */
-  /*  RESULT / LEVEL COMPLETE SCREEN                                   */
+  /*  RESULT SCREEN                                                    */
   /* ================================================================ */
 
   if (screen === "result") {
     const isLastLevel = levelId >= LEVELS.length;
-    const stars =
-      score >= level.words.length * 80 ? 3 : score >= level.words.length * 50 ? 2 : 1;
+    const maxScore = level.words.length * BASE_WORD_POINTS;
+    const stars = didWin
+      ? score >= maxScore * 0.9
+        ? 3
+        : score >= maxScore * 0.6
+          ? 2
+          : 1
+      : 0;
 
     return (
       <MainLayout>
-        <div className="max-w-md mx-auto px-4 sm:px-6 py-12 sm:py-16 text-center">
-          {/* Trophy */}
-          <div className="w-20 h-20 rounded-full bg-primary/10 flex items-center justify-center mx-auto mb-4">
-            <span className="material-symbols-outlined text-primary text-4xl">emoji_events</span>
+        <div className="max-w-md mx-auto px-4 sm:px-6 pt-24 sm:pt-28 pb-12 text-center">
+          {/* Trophy / Time-out icon */}
+          <div
+            className={`w-20 h-20 rounded-full flex items-center justify-center mx-auto mb-4 ${
+              didWin ? "bg-primary/10" : "bg-red-50"
+            }`}
+          >
+            <span
+              className={`material-symbols-outlined text-4xl ${
+                didWin ? "text-primary" : "text-red-500"
+              }`}
+            >
+              {didWin ? "emoji_events" : "timer_off"}
+            </span>
           </div>
 
           <h2 className="text-2xl font-bold text-on-surface mb-1">{level.theme}</h2>
-          <p className="text-on-surface-variant mb-5">Level Complete!</p>
+          <p className="text-on-surface-variant mb-5">
+            {didWin ? "Level Complete!" : "Time's Up!"}
+          </p>
 
-          {/* Stars */}
-          <div className="flex items-center justify-center gap-1 mb-5">
-            {[1, 2, 3].map((n) => (
-              <span
-                key={n}
-                className={`material-symbols-outlined text-3xl ${
-                  n <= stars ? "text-yellow-500" : "text-on-surface-variant/20"
-                }`}
-              >
-                {n <= stars ? "star" : "star"}
-              </span>
-            ))}
-          </div>
+          {/* Stars (only on win) */}
+          {didWin && (
+            <div className="flex items-center justify-center gap-1 mb-5">
+              {[1, 2, 3].map((n) => (
+                <span
+                  key={n}
+                  className={`material-symbols-outlined text-3xl ${
+                    n <= stars ? "text-yellow-500" : "text-on-surface-variant/20"
+                  }`}
+                >
+                  star
+                </span>
+              ))}
+            </div>
+          )}
 
           {/* Score card */}
-          <div className="flex items-stretch bg-surface-container-lowest rounded-2xl border border-outline-variant/10 editorial-shadow mb-8 mx-auto max-w-xs">
+          <div className="flex items-stretch bg-surface-container-lowest rounded-2xl border border-outline-variant/10 editorial-shadow mb-3 mx-auto max-w-xs">
             <div className="flex-1 flex flex-col items-center py-4">
               <span className="material-symbols-outlined text-yellow-500 text-xl mb-1">
                 emoji_events
@@ -463,15 +517,23 @@ export default function BibleCrosswordPage() {
                 check_circle
               </span>
               <p className="text-xl font-bold text-on-surface">
-                {level.words.length}/{level.words.length}
+                {solvedCount}/{level.words.length}
               </p>
               <p className="text-xs text-on-surface-variant">Solved</p>
             </div>
           </div>
 
+          {didWin && finalTimeLeft > 0 && (
+            <p className="text-xs text-on-surface-variant mb-8">
+              Time bonus: +{finalTimeLeft * TIME_BONUS_PER_SECOND} pts
+              ({finalTimeLeft}s left)
+            </p>
+          )}
+          {!didWin && <div className="mb-8" />}
+
           {/* Action buttons */}
           <div className="space-y-3">
-            {!isLastLevel && (
+            {didWin && !isLastLevel && (
               <button
                 onClick={() => startLevel(levelId + 1)}
                 className="w-full bg-primary text-on-primary py-3.5 rounded-xl font-bold flex items-center justify-center gap-2 hover:opacity-90 transition-all shadow-lg shadow-primary/20"
@@ -485,7 +547,7 @@ export default function BibleCrosswordPage() {
               className="w-full border border-outline-variant/20 py-3.5 rounded-xl font-semibold text-on-surface-variant hover:bg-surface-container-low transition-all flex items-center justify-center gap-2"
             >
               <span className="material-symbols-outlined text-lg">refresh</span>
-              Play Again
+              {didWin ? "Play Again" : "Try Again"}
             </button>
             <button
               onClick={() => setScreen("levels")}
@@ -503,24 +565,20 @@ export default function BibleCrosswordPage() {
   /*  PLAY / GAME SCREEN                                               */
   /* ================================================================ */
 
-  const CELL_GAP = 2;
-  const maxCell = Math.min(
-    44,
-    Math.floor((gridWidth - CELL_GAP * (bounds.cols - 1) - 16) / bounds.cols)
-  );
-  const CELL = Math.max(24, maxCell);
-
-  const inputBoxWidth = Math.min(
-    44,
-    Math.floor((Math.min(gridWidth, 480) - 16 - (word.word.length - 1) * 8) / word.word.length)
-  );
+  if (!word) return null;
 
   const feedbackAnimClass =
-    feedback === "wrong" ? "cw-shake" : feedback === "correct" ? "cw-pop" : "";
+    feedback === "wrong" ? "rf-shake" : feedback === "correct" ? "rf-pop" : "";
+
+  const timeLow = timeLeft <= 10;
+  const timePct = Math.max(
+    0,
+    Math.min(100, (timeLeft / (level.words.length * SECONDS_PER_WORD)) * 100)
+  );
 
   return (
     <MainLayout>
-      <div className="max-w-2xl mx-auto px-4 sm:px-6 py-4 sm:py-6">
+      <div className="max-w-2xl mx-auto px-4 sm:px-6 py-4 sm:py-6 flex flex-col min-h-[calc(100dvh-4rem)] sm:min-h-0">
         {/* Header */}
         <div className="flex items-center justify-between mb-4">
           <button
@@ -539,129 +597,68 @@ export default function BibleCrosswordPage() {
           </div>
         </div>
 
-        {/* Progress bar */}
-        <div className="flex items-center gap-3 mb-4">
+        {/* Timer */}
+        <div className="flex items-center gap-3 mb-3">
+          <span
+            className={`material-symbols-outlined text-xl ${
+              timeLow ? "text-red-500 rf-pulse" : "text-on-surface-variant"
+            }`}
+          >
+            timer
+          </span>
           <div className="flex-1 h-2 bg-surface-container rounded-full overflow-hidden">
             <div
-              className="h-full bg-primary rounded-full transition-all duration-500"
-              style={{ width: `${(solved.size / level.words.length) * 100}%` }}
+              className={`h-full rounded-full transition-all duration-1000 ease-linear ${
+                timeLow ? "bg-red-500" : "bg-primary"
+              }`}
+              style={{ width: `${timePct}%` }}
             />
           </div>
-          <span className="text-xs font-bold text-on-surface-variant whitespace-nowrap">
-            {solved.size}/{level.words.length}
+          <span
+            className={`text-sm font-bold tabular-nums whitespace-nowrap ${
+              timeLow ? "text-red-500" : "text-on-surface"
+            }`}
+          >
+            {formatTime(timeLeft)}
           </span>
         </div>
 
-        {/* Word tabs - horizontal scrollable pills */}
-        <div
-          ref={wordTabsRef}
-          className="flex gap-2 overflow-x-auto pb-3 mb-4 scrollbar-hide"
-          style={{ scrollbarWidth: "none", msOverflowStyle: "none" }}
-        >
-          {level.words.map((w, i) => {
-            const isSolved = solved.has(i);
-            const isActive = i === wordIdx;
-            return (
-              <button
-                key={i}
-                data-active={isActive ? "true" : "false"}
-                onClick={() => !isSolved && setWordIdx(i)}
-                disabled={isSolved}
-                className={`flex items-center gap-1.5 rounded-full px-3.5 py-1.5 text-xs font-semibold border-[1.5px] whitespace-nowrap shrink-0 transition-all ${
-                  isSolved
-                    ? "border-green-500 bg-green-50 text-green-600"
-                    : isActive
-                      ? "border-primary bg-primary/5 text-primary"
-                      : "border-outline-variant/20 bg-surface-container-lowest text-on-surface-variant hover:border-primary/30"
-                }`}
-              >
-                {isSolved && (
-                  <span className="material-symbols-outlined text-green-500 text-sm">
-                    check_circle
-                  </span>
-                )}
-                {w.word.length} letters &middot; {w.direction}
-              </button>
-            );
-          })}
-        </div>
-
-        {/* Crossword grid — cropped to bounding box of used cells */}
-        <div ref={gridContainerRef} className="flex justify-center mb-4">
-          <div
-            className="bg-surface-container rounded-2xl p-2 sm:p-3 inline-block"
-          >
-            {Array.from({ length: bounds.rows }, (_, ri) => {
-              const r = bounds.minR + ri;
-              return (
-                <div key={r} className="flex" style={{ gap: CELL_GAP, marginTop: ri > 0 ? CELL_GAP : 0 }}>
-                  {Array.from({ length: bounds.cols }, (_, ci) => {
-                    const c = bounds.minC + ci;
-                    const k = `${r}-${c}`;
-                    const cell = gridMap.get(k);
-                    const isCur = currKeys.has(k);
-                    const isDone = cell
-                      ? cell.wordIndices.some((idx: number) => solved.has(idx))
-                      : false;
-
-                    if (!cell) {
-                      return (
-                        <div
-                          key={k}
-                          className="rounded-sm bg-surface-container"
-                          style={{ width: CELL, height: CELL }}
-                        />
-                      );
-                    }
-
-                    return (
-                      <div
-                        key={k}
-                        className={`flex items-center justify-center font-bold rounded-sm transition-colors ${
-                          isDone
-                            ? "bg-green-50 border-green-500"
-                            : isCur
-                              ? "bg-primary/10 border-primary"
-                              : "bg-surface-container-lowest border-outline-variant/20"
-                        }`}
-                        style={{
-                          width: CELL,
-                          height: CELL,
-                          borderWidth: 2,
-                          borderStyle: "solid",
-                          fontSize: Math.max(11, CELL * 0.42),
-                        }}
-                      >
-                        {isDone ? (
-                          <span className="text-green-700">{cell.letter}</span>
-                        ) : null}
-                      </div>
-                    );
-                  })}
-                </div>
-              );
-            })}
+        {/* Question progress */}
+        <div className="flex items-center gap-3 mb-5">
+          <div className="flex-1 h-1.5 bg-surface-container rounded-full overflow-hidden">
+            <div
+              className="h-full bg-primary/70 rounded-full transition-all duration-500"
+              style={{
+                width: `${(solvedCount / level.words.length) * 100}%`,
+              }}
+            />
           </div>
+          <span className="text-xs font-bold text-on-surface-variant whitespace-nowrap">
+            {solvedCount}/{level.words.length}
+          </span>
         </div>
 
-        {/* Clue card */}
-        <div className="bg-surface-container-lowest rounded-2xl p-4 border border-outline-variant/10 editorial-shadow mb-5">
-          <div className="flex items-center gap-2 mb-2">
+        {/* Question card */}
+        <div className="bg-surface-container-lowest rounded-2xl p-5 border border-outline-variant/10 editorial-shadow mb-5">
+          <div className="flex items-center gap-2 mb-3">
             <span className="bg-primary text-on-primary text-[10px] font-bold uppercase tracking-wider rounded-lg px-2.5 py-1">
-              {word.direction === "across" ? "ACROSS" : "DOWN"}
+              Question {solvedCount + 1}
             </span>
             <span className="text-xs text-on-surface-variant font-medium">
               {word.word.length} letters
             </span>
           </div>
-          <p className="text-sm sm:text-base text-on-surface leading-relaxed">
+          <p className="text-base sm:text-lg text-on-surface leading-relaxed">
             {word.hint}
           </p>
         </div>
 
+        {/* Spacer (mobile only — pushes input boxes toward middle) */}
+        <div className="flex-1 sm:hidden" />
+
         {/* Letter input boxes */}
         <div
-          className={`flex items-center justify-center gap-1.5 sm:gap-2 mb-5 px-2 ${feedbackAnimClass}`}
+          className={`flex items-center justify-center flex-wrap gap-2 sm:gap-2 mb-5 px-2 ${feedbackAnimClass}`}
           key={`input-${levelId}-${wordIdx}-${feedback}`}
         >
           {word.word.split("").map((_, i) => {
@@ -686,11 +683,10 @@ export default function BibleCrosswordPage() {
             return (
               <div
                 key={i}
-                className={`flex items-center justify-center rounded-xl border-2 transition-all ${borderColor} ${bgColor}`}
-                style={{ width: inputBoxWidth, height: inputBoxWidth + 4 }}
+                className={`flex items-center justify-center rounded-xl border-2 transition-all w-11 h-14 sm:w-12 sm:h-14 ${borderColor} ${bgColor}`}
               >
                 {input[i] ? (
-                  <span className="text-lg font-bold text-on-surface cw-letter-in">
+                  <span className="text-2xl font-bold text-on-surface rf-letter-in">
                     {input[i]}
                   </span>
                 ) : (
@@ -701,35 +697,31 @@ export default function BibleCrosswordPage() {
           })}
         </div>
 
+        {/* Spacer (mobile only — pushes bank+controls toward bottom) */}
+        <div className="flex-1 sm:hidden" />
+
         {/* Letter bank */}
         <div className="flex flex-wrap justify-center gap-2 mb-5 px-2">
-          {bank.map((tile) => {
-            const tileSize = Math.min(
-              52,
-              Math.floor((Math.min(gridWidth, 480) - 64 - 4 * 8) / 5)
-            );
-            return (
-              <button
-                key={tile.id}
-                disabled={tile.used}
-                onClick={() => tapTile(tile.id, tile.letter)}
-                className={`flex items-center justify-center rounded-xl font-bold transition-all select-none ${
-                  tile.used
-                    ? "bg-surface-container text-on-surface-variant/20 cursor-default"
-                    : "bg-primary text-on-primary hover:opacity-90 active:scale-95 shadow-md shadow-primary/20 cursor-pointer"
-                }`}
-                style={{
-                  width: tileSize,
-                  height: tileSize,
-                  fontSize: Math.max(14, tileSize * 0.4),
-                  opacity: tile.used ? 0.3 : 1,
-                }}
-              >
-                {tile.letter}
-              </button>
-            );
-          })}
+          {bank.map((tile) => (
+            <button
+              key={tile.id}
+              disabled={tile.used}
+              onClick={() => tapTile(tile.id, tile.letter)}
+              className={`flex items-center justify-center rounded-xl font-bold transition-all select-none w-14 h-14 sm:w-16 sm:h-16 text-2xl sm:text-3xl ${
+                tile.used
+                  ? "bg-surface-container text-on-surface-variant/20 cursor-default opacity-30"
+                  : "bg-primary text-on-primary hover:opacity-90 active:scale-95 shadow-md shadow-primary/20 cursor-pointer"
+              }`}
+            >
+              {tile.letter}
+            </button>
+          ))}
         </div>
+
+        {/* Desktop hint */}
+        <p className="hidden sm:block text-center text-[11px] text-on-surface-variant/60 mb-3">
+          Type letters &middot; Backspace to delete &middot; Enter to submit &middot; Esc to clear
+        </p>
 
         {/* Action buttons row */}
         <div className="flex gap-2.5 mb-4">
@@ -748,13 +740,13 @@ export default function BibleCrosswordPage() {
           </button>
           <button
             onClick={useHint}
-            disabled={hints >= 2}
+            disabled={hintsThisWord >= MAX_HINTS_PER_WORD}
             className="flex-1 flex items-center justify-center gap-1.5 h-12 rounded-2xl bg-yellow-50 border border-yellow-200 text-yellow-700 hover:bg-yellow-100 transition-all disabled:opacity-40 disabled:cursor-not-allowed"
           >
             <span className="material-symbols-outlined text-xl">lightbulb</span>
             <span className="text-sm font-semibold">Hint</span>
             <span className="text-[10px] text-yellow-500 font-medium">
-              {2 - hints}
+              {MAX_HINTS_PER_WORD - hintsThisWord}
             </span>
           </button>
         </div>

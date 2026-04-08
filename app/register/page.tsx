@@ -1,11 +1,12 @@
 "use client";
 
 import Link from "next/link";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { fetchAPI } from "../lib/api";
 import GoogleSignInButton from "../components/GoogleSignInButton";
 import { useTranslation } from "../lib/i18n";
+import TermsBody from "../terms/TermsBody";
 
 export default function RegisterPage() {
   const { t } = useTranslation();
@@ -13,6 +14,23 @@ export default function RegisterPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [showPassword, setShowPassword] = useState(false);
+  const [agreedToTerms, setAgreedToTerms] = useState(false);
+  const [showTerms, setShowTerms] = useState(false);
+
+  // Lock body scroll + close on Escape while modal is open
+  useEffect(() => {
+    if (!showTerms) return;
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setShowTerms(false);
+    };
+    window.addEventListener("keydown", onKey);
+    return () => {
+      document.body.style.overflow = prev;
+      window.removeEventListener("keydown", onKey);
+    };
+  }, [showTerms]);
 
   const [formData, setFormData] = useState({
     email: "",
@@ -43,6 +61,10 @@ export default function RegisterPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!agreedToTerms) {
+      setError("You must agree to the Terms and Conditions before continuing.");
+      return;
+    }
     setLoading(true);
     setError("");
 
@@ -423,10 +445,34 @@ export default function RegisterPage() {
             </select>
           </div>
 
+          {/* Terms & Conditions checkbox */}
+          <label className="flex items-start gap-3 cursor-pointer select-none mt-2">
+            <input
+              type="checkbox"
+              checked={agreedToTerms}
+              onChange={(e) => setAgreedToTerms(e.target.checked)}
+              className="mt-0.5 w-5 h-5 rounded border-2 border-outline-variant/40 text-primary focus:ring-2 focus:ring-primary/30 cursor-pointer accent-primary shrink-0"
+            />
+            <span className="text-sm text-on-surface-variant leading-relaxed">
+              I have read and agree to the{" "}
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.preventDefault();
+                  setShowTerms(true);
+                }}
+                className="text-primary font-semibold hover:underline"
+              >
+                Terms and Conditions
+              </button>
+              .
+            </span>
+          </label>
+
           <button
             type="submit"
-            disabled={loading}
-            className="w-full bg-linear-to-br from-primary to-primary-container text-on-primary py-4 rounded-xl font-bold text-sm tracking-widest uppercase shadow-lg shadow-primary/20 hover:opacity-90 transition-all mt-4 disabled:opacity-50"
+            disabled={loading || !agreedToTerms}
+            className="w-full bg-linear-to-br from-primary to-primary-container text-on-primary py-4 rounded-xl font-bold text-sm tracking-widest uppercase shadow-lg shadow-primary/20 hover:opacity-90 transition-all mt-4 disabled:opacity-50 disabled:cursor-not-allowed"
           >
             {loading ? "Creating..." : "Create Account"}
           </button>
@@ -441,6 +487,67 @@ export default function RegisterPage() {
           </Link>
         </p>
       </div>
+
+      {/* Terms & Conditions Modal */}
+      {showTerms && (
+        <div
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="terms-modal-title"
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6 bg-black/60 backdrop-blur-sm"
+          onClick={() => setShowTerms(false)}
+        >
+          <div
+            className="bg-surface w-full max-w-3xl max-h-[90vh] rounded-2xl shadow-2xl flex flex-col overflow-hidden border border-outline-variant/15"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Modal header */}
+            <div className="flex items-center justify-between px-5 sm:px-6 py-4 border-b border-outline-variant/15 shrink-0">
+              <h2
+                id="terms-modal-title"
+                className="font-headline text-lg sm:text-xl text-on-surface"
+              >
+                Terms &amp; Conditions
+              </h2>
+              <button
+                type="button"
+                onClick={() => setShowTerms(false)}
+                aria-label="Close"
+                className="text-on-surface-variant hover:text-on-surface transition-colors p-1 -mr-1"
+              >
+                <span className="material-symbols-outlined">close</span>
+              </button>
+            </div>
+
+            {/* Scrollable body */}
+            <div className="overflow-y-auto px-5 sm:px-8 py-6 flex-1">
+              <TermsBody />
+            </div>
+
+            {/* Modal footer */}
+            <div className="px-5 sm:px-6 py-4 border-t border-outline-variant/15 flex flex-col sm:flex-row gap-3 shrink-0">
+              <button
+                type="button"
+                onClick={() => setShowTerms(false)}
+                className="flex-1 py-3 rounded-xl border border-outline-variant/20 font-semibold text-on-surface-variant hover:bg-surface-container-low transition-all"
+              >
+                Close
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setAgreedToTerms(true);
+                  setShowTerms(false);
+                  setError("");
+                }}
+                className="flex-1 py-3 rounded-xl bg-primary text-on-primary font-bold hover:opacity-90 transition-all shadow-lg shadow-primary/20"
+              >
+                I Agree
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

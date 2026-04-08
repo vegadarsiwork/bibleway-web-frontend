@@ -15,6 +15,15 @@ const PUBLIC_PATHS = [
   "/launch",
 ];
 
+// Pages that an already-authenticated user should NOT see — they get bounced home.
+const GUEST_ONLY_PATHS = [
+  "/login",
+  "/register",
+  "/forgot-password",
+  "/confirm-password-reset",
+  "/landing",
+];
+
 function isPublicPath(pathname: string): boolean {
   // Exact matches
   if (PUBLIC_PATHS.includes(pathname)) return true;
@@ -42,6 +51,13 @@ export default function AuthGuard({ children }: { children: React.ReactNode }) {
     }
   }, [hasToken, pathname, router]);
 
+  // Authenticated on a guest-only page (login / register / etc.) — bounce home
+  useEffect(() => {
+    if (hasToken === true && GUEST_ONLY_PATHS.includes(pathname)) {
+      router.replace("/");
+    }
+  }, [hasToken, pathname, router]);
+
   // Still checking — show nothing to prevent flash of authenticated content
   if (hasToken === null) return (
     <div className="min-h-screen bg-surface flex items-center justify-center">
@@ -51,6 +67,9 @@ export default function AuthGuard({ children }: { children: React.ReactNode }) {
 
   // Redirect in progress for home page
   if (hasToken === false && pathname === "/") return null;
+
+  // Redirect in progress for guest-only pages
+  if (hasToken === true && GUEST_ONLY_PATHS.includes(pathname)) return null;
 
   // Authenticated or on a public path — render normally
   if (hasToken || isPublicPath(pathname)) return <>{children}</>;

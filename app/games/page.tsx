@@ -21,13 +21,12 @@ const GAMES: { id: string; title: string; description: string; icon: string; hre
     players: "1 Player",
   },
   {
-    id: "bible-crossword",
-    title: "Bible Crossword",
-    description: "Solve clues about biblical places and fill the crossword grid. Hints available!",
-    icon: "extension",
-    href: "/games/crossword",
+    id: "bible-rapidfire",
+    title: "Bible Rapid Fire",
+    description: "Beat the clock! Answer rapid-fire Bible clues before time runs out. Hints available.",
+    icon: "bolt",
+    href: "/games/rapidfire",
     players: "1 Player",
-    comingSoon: true,
   },
   {
     id: "find-difference",

@@ -263,6 +263,63 @@ function BibleContent() {
   }, [pages]);
 
   // ═══════════════════════════════════════════════════════════════
+  // STUDY TRANSLATION STATE
+  // ═══════════════════════════════════════════════════════════════
+  const [studyLang, setStudyLang] = useState<string>(DEFAULT_LANGUAGE);
+  const [translatedStudyContent, setTranslatedStudyContent] = useState<string | null>(null);
+  const [isStudyTranslating, setIsStudyTranslating] = useState(false);
+  const studyTranslationAbortRef = useRef(0);
+
+  // Reset study language when page changes
+  useEffect(() => {
+    setStudyLang(DEFAULT_LANGUAGE);
+    setTranslatedStudyContent(null);
+  }, [selectedPageId]);
+
+  // Translate study content when language changes
+  useEffect(() => {
+    if (studyLang === DEFAULT_LANGUAGE || !pageData?.content) {
+      setTranslatedStudyContent(null);
+      return;
+    }
+
+    const requestId = ++studyTranslationAbortRef.current;
+    setIsStudyTranslating(true);
+
+    // Parse markdown to HTML, strip tags, translate plain text
+    const parsedHtml = marked.parse(pageData.content) as string;
+    const plainText = parsedHtml.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim();
+
+    translateText(plainText, studyLang)
+      .then((result) => {
+        if (studyTranslationAbortRef.current === requestId) {
+          const paragraphs = result
+            .split(/\n\n+/)
+            .filter((p: string) => p.trim())
+            .map((p: string) => `<p>${p.trim()}</p>`)
+            .join("");
+          setTranslatedStudyContent(paragraphs || `<p>${result}</p>`);
+        }
+      })
+      .catch((err) => {
+        if (studyTranslationAbortRef.current === requestId) {
+          console.error("Study translation error:", err);
+          setTranslatedStudyContent(null);
+          setStudyLang(DEFAULT_LANGUAGE);
+        }
+      })
+      .finally(() => {
+        if (studyTranslationAbortRef.current === requestId) {
+          setIsStudyTranslating(false);
+        }
+      });
+  }, [studyLang, pageData?.content]);
+
+  const studyDisplayContent = translatedStudyContent
+    || (pageData?.content ? (marked.parse(pageData.content) as string) : "");
+  const isStudyRtl = LANGUAGES.find((l) => l.code === studyLang)?.rtl ?? false;
+
+  // ═══════════════════════════════════════════════════════════════
   // SEARCH STATE
   // ═══════════════════════════════════════════════════════════════
   const [searchQuery, setSearchQuery] = useState("");
@@ -1090,6 +1147,11 @@ function BibleContent() {
                       {!pageData.is_preview && (
                         <div className="flex flex-wrap items-center gap-3 mb-6">
                           <TTSControls content={pageData.content || null} chapterId={selectedPageId || ""} />
+                          <LanguageSelector
+                            selectedLang={studyLang}
+                            onSelect={setStudyLang}
+                            isTranslating={isStudyTranslating}
+                          />
                           <button
                             onClick={() => {
                               if (!selectedPageId) return;
@@ -1133,7 +1195,26 @@ function BibleContent() {
                       )}
 
                       <div className={`relative ${pageData.is_preview ? "pb-0" : ""}`}>
+                        {isStudyTranslating && (
+                          <div className="flex items-center gap-2 mb-4 px-4 py-2.5 rounded-xl bg-primary/5 border border-primary/10 text-sm text-primary">
+                            <span className="w-4 h-4 border-2 border-primary/30 border-t-primary rounded-full animate-spin shrink-0" />
+                            Translating to {LANGUAGES.find((l) => l.code === studyLang)?.name || studyLang}...
+                          </div>
+                        )}
+                        {translatedStudyContent && !isStudyTranslating && (
+                          <div className="flex items-center gap-2 mb-4 px-4 py-2 rounded-xl bg-surface-container-low text-xs text-on-surface-variant/60">
+                            <span className="material-symbols-outlined text-sm">translate</span>
+                            Translated to {LANGUAGES.find((l) => l.code === studyLang)?.name}
+                            <button
+                              onClick={() => setStudyLang(DEFAULT_LANGUAGE)}
+                              className="ml-auto text-primary hover:text-primary/80 font-medium transition-colors"
+                            >
+                              Show original
+                            </button>
+                          </div>
+                        )}
                         <div
+                          dir={isStudyRtl ? "rtl" : "ltr"}
                           className="study-content prose prose-lg max-w-none text-on-surface-variant leading-[1.9] font-body
                             [&>p]:mb-5 [&>p]:pl-4
                             [&_blockquote]:border-l-4 [&_blockquote]:border-primary/30 [&_blockquote]:pl-6 [&_blockquote]:py-3
@@ -1144,7 +1225,7 @@ function BibleContent() {
                             [&_ul]:pl-8 [&_ul]:space-y-2 [&_ol]:pl-8 [&_ol]:space-y-2
                             [&_strong]:text-on-surface [&_strong]:font-bold
                             [&_em]:italic"
-                          dangerouslySetInnerHTML={{ __html: sanitizeHTML(applyHighlightsToContent(marked.parse(pageData.content || "") as string, undefined, selectedPageId || undefined)) }}
+                          dangerouslySetInnerHTML={{ __html: sanitizeHTML(applyHighlightsToContent(studyDisplayContent || "", undefined, selectedPageId || undefined)) }}
                         />
 
                         {/* Gradient fade for preview mode */}

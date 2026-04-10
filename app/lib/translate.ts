@@ -1,4 +1,5 @@
-const TRANSLATE_URL = "https://translate.googleapis.com/translate_a/single";
+const GOOGLE_TRANSLATE_URL = "https://translate.googleapis.com/translate_a/single";
+const MYMEMORY_URL = "https://api.mymemory.translated.net/get";
 
 const cache = new Map<string, string>();
 
@@ -40,7 +41,7 @@ export const LANGUAGES: Language[] = [
 export const DEFAULT_LANGUAGE = "en";
 
 /**
- * Translate text using the Google Translate free API.
+ * Translate text using Google Translate with MyMemory as fallback.
  * Results are cached in-memory to avoid repeated requests.
  */
 export async function translateText(
@@ -55,9 +56,18 @@ export async function translateText(
   if (cached) return cached;
 
   const chunks = splitText(text, 4000);
-  const translated = await Promise.all(
-    chunks.map((chunk) => translateChunk(chunk, targetLang, sourceLang)),
-  );
+  let translated: string[];
+
+  try {
+    translated = await Promise.all(
+      chunks.map((chunk) => googleTranslateChunk(chunk, targetLang, sourceLang)),
+    );
+  } catch {
+    // Fallback to MyMemory if Google Translate fails
+    translated = await Promise.all(
+      chunks.map((chunk) => myMemoryTranslateChunk(chunk, targetLang, sourceLang)),
+    );
+  }
 
   const fullResult = translated.join("");
   cache.set(key, fullResult);
@@ -75,7 +85,8 @@ export async function translateText(
   return fullResult;
 }
 
-async function translateChunk(
+/** Google Translate (unofficial free endpoint). */
+async function googleTranslateChunk(
   text: string,
   targetLang: string,
   sourceLang: string,
@@ -88,9 +99,9 @@ async function translateChunk(
     q: text,
   });
 
-  const response = await fetch(`${TRANSLATE_URL}?${params.toString()}`);
+  const response = await fetch(`${GOOGLE_TRANSLATE_URL}?${params.toString()}`);
   if (!response.ok) {
-    throw new Error(`Translation failed: ${response.status}`);
+    throw new Error(`Google Translate failed: ${response.status}`);
   }
 
   const data = await response.json();
@@ -103,6 +114,31 @@ async function translateChunk(
   }
 
   return text;
+}
+
+/** MyMemory Translation API (free, no key needed, 5000 chars/day anonymous). */
+async function myMemoryTranslateChunk(
+  text: string,
+  targetLang: string,
+  sourceLang: string,
+): Promise<string> {
+  const params = new URLSearchParams({
+    q: text,
+    langpair: `${sourceLang}|${targetLang}`,
+  });
+
+  const response = await fetch(`${MYMEMORY_URL}?${params.toString()}`);
+  if (!response.ok) {
+    throw new Error(`MyMemory failed: ${response.status}`);
+  }
+
+  const data = await response.json();
+
+  if (data?.responseStatus === 200 && data?.responseData?.translatedText) {
+    return data.responseData.translatedText;
+  }
+
+  throw new Error("MyMemory returned no translation");
 }
 
 function splitText(text: string, maxLength: number): string[] {

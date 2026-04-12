@@ -11,7 +11,7 @@ import { useTranslation } from "../../lib/i18n";
 export default function MyPurchasesPage() {
   const { t } = useTranslation();
   const { showToast } = useToast();
-  const [purchases, setPurchases] = useState<any[]>([]);
+  const [purchases, setPurchases] = useState<import("../../types").Purchase[]>([]);
   const [loading, setLoading] = useState(true);
   const [downloadingId, setDownloadingId] = useState<string | null>(null);
 

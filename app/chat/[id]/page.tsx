@@ -9,11 +9,19 @@ import { fetchAPI } from "../../lib/api";
 import { containsProfanity, getProfanityWarning } from "../../lib/contentFilter";
 import { useToast } from "../../components/Toast";
 
+interface ChatMessageLocal {
+  id: string;
+  sender: { id: string; full_name: string; profile_photo: string | null; age?: number };
+  text: string;
+  is_read: boolean;
+  created_at: string;
+}
+
 interface MessageGroup {
   senderId: string;
   senderName: string;
   isOwn: boolean;
-  messages: any[];
+  messages: ChatMessageLocal[];
 }
 
 export default function ChatConversationPage() {
@@ -192,8 +200,8 @@ export default function ChatConversationPage() {
       if (translated) {
         setTranslations(prev => ({ ...prev, [msgId]: translated }));
       }
-    } catch (err: any) {
-      console.error("Translate failed:", err.message);
+    } catch (err: unknown) {
+      console.error("Translate failed:", err instanceof Error ? err.message : err);
     }
     setTranslating(prev => ({ ...prev, [msgId]: false }));
   }
@@ -219,7 +227,7 @@ export default function ChatConversationPage() {
     return new Date(iso).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
   }
 
-  function renderBubble(msg: any, isOwn: boolean, isFirst: boolean, isLast: boolean) {
+  function renderBubble(msg: ChatMessageLocal, isOwn: boolean, isFirst: boolean, isLast: boolean) {
     const { isSticker, stickerId } = parseStickerMessage(msg.text || "");
     const ownCorners = "rounded-2xl rounded-br-sm";
     const otherCorners = "rounded-2xl rounded-bl-sm";

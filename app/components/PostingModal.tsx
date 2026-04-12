@@ -100,7 +100,7 @@ export default function PostingModal({ activeTab: initialTab, onClose, onPostCre
         if (!results.length) {
           throw new Error("Upload returned no results. Please try again.");
         }
-        finalMediaKeys = results.map((r: any) => r.key || r.id);
+        finalMediaKeys = results.map((r: { key?: string; id?: string }) => r.key || r.id || "");
         finalMediaTypes = mediaTypes;
       }
 
@@ -121,8 +121,9 @@ export default function PostingModal({ activeTab: initialTab, onClose, onPostCre
       }
       onClose();
       onPostCreated();
-    } catch (err: any) {
-      const msg = err?.name === "AbortError" ? "Upload timed out. Try a smaller file or check your connection." : (err?.message || "Something went wrong.");
+    } catch (err: unknown) {
+      const error = err instanceof Error ? err : new Error("Something went wrong.");
+      const msg = error.name === "AbortError" ? "Upload timed out. Try a smaller file or check your connection." : error.message;
       setUploadError(msg);
       showToast("error", "Failed to publish", msg);
     } finally {

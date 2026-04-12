@@ -8,34 +8,10 @@ import { containsProfanity, getProfanityWarning } from "../lib/contentFilter";
 import { useToast } from "./Toast";
 import { useTranslation } from "../lib/i18n";
 import { translateText } from "../lib/translate";
-
-interface MediaItem {
-  id?: string;
-  file: string;
-  media_type: string;
-  order?: number;
-}
-
-interface FeedPost {
-  id: string;
-  author: string;
-  authorId: string;
-  authorPhoto: string | null;
-  time: string;
-  rawDate: string;
-  title?: string;
-  content: string;
-  image?: string;
-  media?: MediaItem[];
-  likes: number;
-  prayers?: number;
-  comments: number;
-  type: "post" | "prayer";
-  userReaction: string | null;
-  is_boosted?: boolean;
-}
-
 import { REACTIONS } from "../lib/constants";
+import type { FeedItem, Comment, Reply } from "../types";
+
+type FeedPost = FeedItem;
 
 function MediaLightbox({ src, mediaType, onClose }: { src: string; mediaType: string; onClose: () => void }) {
   useEffect(() => {
@@ -235,7 +211,7 @@ export default function FeedCard({
   const [translatedContent, setTranslatedContent] = useState<string | null>(null);
   const [isTranslating, setIsTranslating] = useState(false);
   const [showComments, setShowComments] = useState(false);
-  const [comments, setComments] = useState<any[]>([]);
+  const [comments, setComments] = useState<Comment[]>([]);
   const [commentsLoading, setCommentsLoading] = useState(false);
   const [newComment, setNewComment] = useState("");
   const [postingComment, setPostingComment] = useState(false);
@@ -243,7 +219,7 @@ export default function FeedCard({
   const [replyingTo, setReplyingTo] = useState<string | null>(null);
   const [replyText, setReplyText] = useState("");
   const [postingReply, setPostingReply] = useState(false);
-  const [repliesData, setRepliesData] = useState<Record<string, any[]>>({});
+  const [repliesData, setRepliesData] = useState<Record<string, Reply[]>>({});
   const [repliesLoading, setRepliesLoading] = useState<string | null>(null);
   const [openMenu, setOpenMenu] = useState(false);
   const [showStickerPicker, setShowStickerPicker] = useState(false);
@@ -599,7 +575,7 @@ export default function FeedCard({
             <div className="flex justify-center"><div className="animate-spin rounded-full h-5 w-5 border-t-2 border-primary"></div></div>
           ) : (
             <div className="space-y-3 max-h-64 overflow-y-auto">
-              {comments.map((c: any) => (
+              {comments.map((c) => (
                 <div key={c.id}>
                   <div className="flex items-start gap-3">
                     <div className="flex-1 bg-surface-container-low rounded-xl px-4 py-2 relative">
@@ -648,7 +624,7 @@ export default function FeedCard({
                     <div className="ml-8 mt-2 space-y-2">
                       {repliesLoading === c.id ? (
                         <div className="flex justify-center py-1"><div className="animate-spin rounded-full h-4 w-4 border-t-2 border-primary"></div></div>
-                      ) : (repliesData[c.id] || []).map((r: any) => (
+                      ) : (repliesData[c.id] || []).map((r) => (
                         <div key={r.id} className="bg-surface-container-high rounded-lg px-3 py-1.5">
                           <span className="font-semibold text-xs">{r.user?.full_name || "User"}</span>
                           <p className="text-xs text-on-surface-variant">{renderCommentText(r.text)}</p>

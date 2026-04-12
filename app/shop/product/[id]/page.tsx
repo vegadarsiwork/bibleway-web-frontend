@@ -8,12 +8,13 @@ import { fetchAPI } from "../../../lib/api";
 import Shimmer from "../../../components/Shimmer";
 import { useToast } from "../../../components/Toast";
 import { openRazorpayCheckout, RazorpayPaymentResponse } from "../../../lib/razorpay";
+import type { Product } from "../../../types";
 
 export default function ProductDetailPage() {
   const { showToast } = useToast();
   const params = useParams();
   const productId = params.id as string;
-  const [product, setProduct] = useState<any>(null);
+  const [product, setProduct] = useState<(Product & { price?: number }) | null>(null);
   const [loading, setLoading] = useState(true);
   const [purchasing, setPurchasing] = useState(false);
   const [purchased, setPurchased] = useState(false);
@@ -45,8 +46,8 @@ export default function ProductDetailPage() {
       });
       setPurchased(true);
       showToast("success", "Downloaded!", "Free product added to your library.");
-    } catch (err: any) {
-      showToast("error", "Failed", err.message || "Could not claim free product.");
+    } catch (err: unknown) {
+      showToast("error", "Failed", err instanceof Error ? err.message : "Could not claim free product.");
     } finally {
       setPurchasing(false);
     }
@@ -88,11 +89,11 @@ export default function ProductDetailPage() {
 
             setPurchased(true);
             showToast("success", "Purchase Complete!", `"${product?.title}" is now yours.`);
-          } catch (verifyErr: any) {
+          } catch (verifyErr: unknown) {
             showToast(
               "error",
               "Verification Failed",
-              verifyErr?.message || "Payment succeeded but verification failed. Contact support."
+              verifyErr instanceof Error ? verifyErr.message : "Payment succeeded but verification failed. Contact support."
             );
           }
         },
@@ -103,8 +104,8 @@ export default function ProductDetailPage() {
           // User closed the checkout modal
         },
       });
-    } catch (err: any) {
-      showToast("error", "Error", err.message || "Something went wrong. Please try again.");
+    } catch (err: unknown) {
+      showToast("error", "Error", err instanceof Error ? err.message : "Something went wrong. Please try again.");
     } finally {
       setPurchasing(false);
     }

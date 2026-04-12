@@ -7,13 +7,14 @@ import MainLayout from "../../components/MainLayout";
 import { fetchAPI } from "../../lib/api";
 import { useChat } from "../../lib/ChatContext";
 import { useToast } from "../../components/Toast";
+import type { UserPublicProfile, Post, Prayer, UserListItem, FollowRelationship } from "../../types";
 
 export default function PublicProfilePage() {
   const params = useParams();
   const userId = params.id as string;
-  const [profile, setProfile] = useState<any>(null);
-  const [posts, setPosts] = useState<any[]>([]);
-  const [prayers, setPrayers] = useState<any[]>([]);
+  const [profile, setProfile] = useState<UserPublicProfile | null>(null);
+  const [posts, setPosts] = useState<Post[]>([]);
+  const [prayers, setPrayers] = useState<Prayer[]>([]);
   const [activeTab, setActiveTab] = useState("posts");
   const [loading, setLoading] = useState(true);
   const [isFollowing, setIsFollowing] = useState(false);
@@ -22,7 +23,7 @@ export default function PublicProfilePage() {
   const [blockConfirm, setBlockConfirm] = useState<"block" | "unblock" | null>(null);
   const [actionToast, setActionToast] = useState<string | null>(null);
   const [showFollowersModal, setShowFollowersModal] = useState<"followers" | "following" | null>(null);
-  const [followList, setFollowList] = useState<any[]>([]);
+  const [followList, setFollowList] = useState<UserListItem[]>([]);
   const [followListLoading, setFollowListLoading] = useState(false);
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
   const [messagingLoading, setMessagingLoading] = useState(false);
@@ -60,14 +61,15 @@ export default function PublicProfilePage() {
       if (isFollowing) {
         await fetchAPI(`/accounts/users/${userId}/follow/`, { method: "DELETE" });
         setIsFollowing(false);
-        setProfile((p: any) => ({ ...p, follower_count: Math.max(0, (p.follower_count || 0) - 1) }));
+        setProfile((p) => p ? ({ ...p, follower_count: Math.max(0, (p.follower_count || 0) - 1) }) : p);
       } else {
         await fetchAPI(`/accounts/users/${userId}/follow/`, { method: "POST", body: JSON.stringify({}) });
         setIsFollowing(true);
-        setProfile((p: any) => ({ ...p, follower_count: (p.follower_count || 0) + 1 }));
+        setProfile((p) => p ? ({ ...p, follower_count: (p.follower_count || 0) + 1 }) : p);
       }
-    } catch (err: any) {
-      showToast("error", "Action failed", err?.message || "Could not complete the action.");
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : "Could not complete the action.";
+      showToast("error", "Action failed", message);
     } finally {
       setFollowLoading(false);
     }
@@ -100,7 +102,7 @@ export default function PublicProfilePage() {
       const res = await fetchAPI(`/accounts/users/${userId}/${type}/`);
       const raw = res?.data?.results || res?.results || res?.data || [];
       // Extract the nested user from FollowRelationship objects
-      const users = raw.map((r: any) => type === "followers" ? r.follower : r.following).filter(Boolean);
+      const users = raw.map((r: FollowRelationship) => type === "followers" ? r.follower : r.following).filter(Boolean);
       setFollowList(users);
     } catch { /* failed to load follow list */ } finally {
       setFollowListLoading(false);
@@ -206,8 +208,9 @@ export default function PublicProfilePage() {
                     try {
                       const conv = await startConversation(userId);
                       if (conv?.id) router.push(`/chat/${conv.id}`);
-                    } catch (err: any) {
-                      showToast("error", "Message failed", err?.message || "Could not start conversation.");
+                    } catch (err: unknown) {
+                      const message = err instanceof Error ? err.message : "Could not start conversation.";
+                      showToast("error", "Message failed", message);
                     } finally {
                       setMessagingLoading(false);
                     }
@@ -358,7 +361,7 @@ export default function PublicProfilePage() {
                 <div className="flex justify-center py-8"><div className="animate-spin rounded-full h-8 w-8 border-t-2 border-primary"></div></div>
               ) : followList.length > 0 ? (
                 <div className="space-y-3">
-                  {followList.map((u: any) => (
+                  {followList.map((u) => (
                     <Link href={`/user/${u.id}`} key={u.id} onClick={() => setShowFollowersModal(null)} className="flex items-center gap-3 p-3 rounded-xl hover:bg-surface-container-low transition-colors">
                       <div className="w-10 h-10 rounded-full bg-surface-container-high overflow-hidden flex items-center justify-center">
                         {u.profile_photo ? <img src={u.profile_photo} alt="" className="w-full h-full object-cover" /> : <span className="material-symbols-outlined text-on-surface-variant">person</span>}

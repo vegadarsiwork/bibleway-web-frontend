@@ -48,7 +48,7 @@ let scriptLoaded = false;
 let scriptLoading: Promise<boolean> | null = null;
 
 export function loadRazorpayScript(): Promise<boolean> {
-  if (scriptLoaded || (typeof window !== "undefined" && (window as any).Razorpay)) {
+  if (scriptLoaded || (typeof window !== "undefined" && (window as unknown as { Razorpay?: unknown }).Razorpay)) {
     scriptLoaded = true;
     return Promise.resolve(true);
   }
@@ -89,12 +89,8 @@ export async function openRazorpayCheckout(opts: RazorpayCheckoutOptions): Promi
       description: opts.description || "Payment",
       prefill: { email: opts.email || "" },
       theme: { color: opts.color || PRIMARY_COLOR },
-      handler: (response: any) => {
-        opts.onSuccess({
-          razorpay_order_id: response.razorpay_order_id,
-          razorpay_payment_id: response.razorpay_payment_id,
-          razorpay_signature: response.razorpay_signature,
-        });
+      handler: (response: RazorpayPaymentResponse) => {
+        opts.onSuccess(response);
         resolve();
       },
       modal: {
@@ -105,9 +101,10 @@ export async function openRazorpayCheckout(opts: RazorpayCheckoutOptions): Promi
       },
     };
 
-    const rzp = new (window as any).Razorpay(options);
+    const RazorpayConstructor = (window as unknown as { Razorpay: new (opts: Record<string, unknown>) => { on: (event: string, cb: (resp: { error?: { description?: string } }) => void) => void; open: () => void } }).Razorpay;
+    const rzp = new RazorpayConstructor(options);
 
-    rzp.on("payment.failed", (resp: any) => {
+    rzp.on("payment.failed", (resp: { error?: { description?: string } }) => {
       const errorMsg = resp?.error?.description || "Payment could not be processed.";
       opts.onFailure?.(errorMsg);
       reject(new Error(errorMsg));

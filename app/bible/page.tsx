@@ -14,6 +14,7 @@ import { useBibles, useBooks, useChapters, useChapterContent, useStudySections, 
 import { translateText, LANGUAGES, DEFAULT_LANGUAGE, type Language } from "../lib/translate";
 import { useToast } from "../components/Toast";
 import { sanitizeHTML } from "../lib/sanitize";
+import type { BibleVersion, BibleBook, BibleChapterSummary, BibleChapterContent, SegregatedSection, SegregatedChapter, SegregatedPage, SegregatedPageDetail, Bookmark, Note, Highlight } from "../types";
 
 marked.setOptions({ breaks: true, gfm: true });
 
@@ -177,8 +178,8 @@ function BibleContent() {
   // STANDARD READER STATE (React Query cached)
   // ═══════════════════════════════════════════════════════════════
   const [readerStep, setReaderStep] = useState<ReaderStep>("pick-bible");
-  const [selectedBible, setSelectedBible] = useState<any>(null);
-  const [selectedBook, setSelectedBook] = useState<any>(null);
+  const [selectedBible, setSelectedBible] = useState<BibleVersion | null>(null);
+  const [selectedBook, setSelectedBook] = useState<BibleBook | null>(null);
   const [selectedChapterId, setSelectedChapterId] = useState<string>("");
 
   // React Query hooks — cached with mobile-matching TTLs
@@ -248,8 +249,8 @@ function BibleContent() {
   // STUDY STATE (React Query cached)
   // ═══════════════════════════════════════════════════════════════
   const [studyStep, setStudyStep] = useState<StudyStep>("pick-section");
-  const [selectedSection, setSelectedSection] = useState<any>(null);
-  const [selectedStudyChapter, setSelectedStudyChapter] = useState<any>(null);
+  const [selectedSection, setSelectedSection] = useState<SegregatedSection | null>(null);
+  const [selectedStudyChapter, setSelectedStudyChapter] = useState<SegregatedChapter | null>(null);
   const [selectedPageId, setSelectedPageId] = useState<string | null>(null);
 
   const { data: sections = [], isLoading: sectionsLoading } = useStudySections();
@@ -347,10 +348,10 @@ function BibleContent() {
   const removeBookmarkMut = useRemoveBookmark();
 
   const currentChapterBookmarked = bookmarksList.some(
-    (bm: any) => bm.verse_reference === selectedChapterId
+    (bm: Bookmark) => bm.verse_reference === selectedChapterId
   );
   const currentBookmarkId = bookmarksList.find(
-    (bm: any) => bm.verse_reference === selectedChapterId
+    (bm: Bookmark) => bm.verse_reference === selectedChapterId
   )?.id;
 
   function handleToggleBookmark() {
@@ -381,7 +382,7 @@ function BibleContent() {
     );
   }
 
-  function handleStartEditNote(note: any) {
+  function handleStartEditNote(note: Note) {
     setEditingNoteId(note.id);
     setEditNoteText(note.text);
   }
@@ -482,7 +483,7 @@ function BibleContent() {
     if (!html) return html;
     // Filter highlights for the current chapter/page
     const chapterHighlights = globalHighlights.filter(
-      (hl: any) => {
+      (hl: Highlight & { selected_text?: string }) => {
         if (chapterId && hl.verse_reference === chapterId) return true;
         if (objectId && hl.object_id === objectId) return true;
         return false;
@@ -550,13 +551,13 @@ function BibleContent() {
     return () => window.removeEventListener("popstate", handlePopState);
   }, []);
 
-  function pushBibleHistory(step: string, tab: string, extra: Record<string, any> = {}) {
+  function pushBibleHistory(step: string, tab: string, extra: Record<string, unknown> = {}) {
     window.history.pushState({ bibleStep: step, tab, ...extra }, "");
   }
 
   // ─── Pick Bible → load books ─────────────────────────────────
   // Navigation just sets state — React Query handles fetching + caching
-  function handlePickBible(bible: any) {
+  function handlePickBible(bible: BibleVersion) {
     setSelectedBible(bible);
     setSelectedBook(null);
     setSelectedChapterId("");
@@ -565,7 +566,7 @@ function BibleContent() {
     pushBibleHistory("pick-book", "standard", { bible });
   }
 
-  function handlePickBook(book: any) {
+  function handlePickBook(book: BibleBook) {
     setSelectedBook(book);
     setSelectedChapterId("");
     setSearchQuery("");
@@ -584,14 +585,14 @@ function BibleContent() {
     // If switching to a different book, update selectedBook
     const newBookCode = chapterId.split(".")[0];
     if (newBookCode !== selectedBook?.id && books.length > 0) {
-      const matchingBook = books.find((b: any) => b.id === newBookCode);
+      const matchingBook = books.find((b: BibleBook) => b.id === newBookCode);
       if (matchingBook) setSelectedBook(matchingBook);
     }
   }
 
   // Sections, study chapters, pages, page detail all loaded via React Query hooks above
 
-  function handlePickSection(section: any) {
+  function handlePickSection(section: SegregatedSection) {
     setSelectedSection(section);
     setSelectedStudyChapter(null);
     setSelectedPageId(null);
@@ -599,7 +600,7 @@ function BibleContent() {
     pushBibleHistory("pick-module", "study", { section });
   }
 
-  function handlePickModule(chapter: any) {
+  function handlePickModule(chapter: SegregatedChapter) {
     setSelectedStudyChapter(chapter);
     setSelectedPageId(null);
     setStudyStep("reading");
@@ -712,14 +713,14 @@ function BibleContent() {
                   </div>
                 ) : (
                   <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                    {bibles.filter((b: any) => {
+                    {bibles.filter((b: BibleVersion) => {
                       if (!searchQuery.trim()) return true;
                       const q = searchQuery.toLowerCase();
                       return (b.nameLocal || b.name || "").toLowerCase().includes(q)
                         || (b.abbreviation || "").toLowerCase().includes(q)
                         || (b.description || "").toLowerCase().includes(q)
                         || (b.language?.nameLocal || "").toLowerCase().includes(q);
-                    }).map((b: any) => (
+                    }).map((b: BibleVersion) => (
                       <button
                         key={b.id}
                         onClick={() => handlePickBible(b)}
@@ -756,11 +757,11 @@ function BibleContent() {
                   </div>
                 ) : (
                   <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
-                    {books.filter((b: any) => {
+                    {books.filter((b: BibleBook) => {
                       if (!searchQuery.trim()) return true;
                       const q = searchQuery.toLowerCase();
                       return (b.name || "").toLowerCase().includes(q) || (b.abbreviation || "").toLowerCase().includes(q);
-                    }).map((b: any) => (
+                    }).map((b: BibleVersion) => (
                       <button
                         key={b.id}
                         onClick={() => handlePickBook(b)}
@@ -788,7 +789,7 @@ function BibleContent() {
                   </div>
                 ) : (
                   <div className="grid grid-cols-6 sm:grid-cols-8 lg:grid-cols-10 gap-3">
-                    {chapters.map((ch: any) => (
+                    {chapters.map((ch: BibleChapterSummary) => (
                       <button
                         key={ch.id}
                         onClick={() => handlePickChapter(ch.id)}
@@ -811,7 +812,7 @@ function BibleContent() {
                   <div>
                     <label className="text-[10px] font-label uppercase tracking-widest text-on-surface-variant/60 block mb-3">Chapters</label>
                     <div className="grid grid-cols-4 gap-2 max-h-48 overflow-y-auto pr-2 custom-scrollbar">
-                      {chapters.map((ch: any) => (
+                      {chapters.map((ch: BibleChapterSummary) => (
                         <button
                           key={ch.id}
                           onClick={() => handleSwitchChapter(ch.id)}
@@ -977,7 +978,7 @@ function BibleContent() {
                   <div className="mb-4">
                     <label className="text-[10px] font-label uppercase tracking-widest text-on-surface-variant/60 block mb-2">Chapters</label>
                     <div className="grid grid-cols-8 gap-1.5 max-h-32 overflow-y-auto custom-scrollbar">
-                      {chapters.map((ch: any) => (
+                      {chapters.map((ch: BibleChapterSummary) => (
                         <button
                           key={ch.id}
                           onClick={() => { handleSwitchChapter(ch.id); setMobileFabOpen(false); }}
@@ -1038,7 +1039,7 @@ function BibleContent() {
                   </div>
                 ) : sections.length > 0 ? (
                   <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                    {sections.map((s: any) => (
+                    {sections.map((s: SegregatedSection) => (
                       <button
                         key={s.id}
                         onClick={() => handlePickSection(s)}
@@ -1076,7 +1077,7 @@ function BibleContent() {
                   </div>
                 ) : studyChapters.length > 0 ? (
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                    {studyChapters.map((c: any) => (
+                    {studyChapters.map((c: SegregatedChapter) => (
                       <button
                         key={c.id}
                         onClick={() => handlePickModule(c)}
@@ -1103,7 +1104,7 @@ function BibleContent() {
                 <aside className="hidden xl:block w-72 space-y-4 xl:order-1">
                   <label className="text-[10px] font-label uppercase tracking-widest text-on-surface-variant/60 block">Readings</label>
                   <div className="space-y-1">
-                    {pages.map((p: any, idx: number) => (
+                    {pages.map((p: SegregatedPage, idx: number) => (
                       <button
                         key={p.id}
                         onClick={() => handleSwitchPage(p.id)}
@@ -1155,7 +1156,7 @@ function BibleContent() {
                           <button
                             onClick={() => {
                               if (!selectedPageId) return;
-                              const bm = bookmarksList.find((b: any) => b.object_id === selectedPageId);
+                              const bm = bookmarksList.find((b: Bookmark) => b.object_id === selectedPageId);
                               if (bm) {
                                 removeBookmarkMut.mutate(bm.id);
                               } else {
@@ -1164,7 +1165,7 @@ function BibleContent() {
                             }}
                             disabled={addBookmarkMut.isPending || removeBookmarkMut.isPending}
                             className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border text-sm transition-all disabled:opacity-50 ${
-                              bookmarksList.some((b: any) => b.object_id === selectedPageId)
+                              bookmarksList.some((b: Bookmark) => b.object_id === selectedPageId)
                                 ? "bg-primary/10 border-primary/20 text-primary"
                                 : "bg-surface-container-lowest border-outline-variant/15 text-on-surface-variant hover:border-primary/30 hover:text-primary"
                             }`}
@@ -1172,11 +1173,11 @@ function BibleContent() {
                           >
                             <span
                               className="material-symbols-outlined text-base"
-                              style={bookmarksList.some((b: any) => b.object_id === selectedPageId) ? { fontVariationSettings: "'FILL' 1" } : undefined}
+                              style={bookmarksList.some((b: Bookmark) => b.object_id === selectedPageId) ? { fontVariationSettings: "'FILL' 1" } : undefined}
                             >
                               bookmark
                             </span>
-                            <span className="font-medium">{bookmarksList.some((b: any) => b.object_id === selectedPageId) ? "Bookmarked" : "Bookmark"}</span>
+                            <span className="font-medium">{bookmarksList.some((b: Bookmark) => b.object_id === selectedPageId) ? "Bookmarked" : "Bookmark"}</span>
                           </button>
                           {/* Share button */}
                           <button
@@ -1315,7 +1316,7 @@ function BibleContent() {
                   <div className="mb-4">
                     <label className="text-[10px] font-label uppercase tracking-widest text-on-surface-variant/60 block mb-2">Readings</label>
                     <div className="space-y-1 max-h-32 overflow-y-auto custom-scrollbar">
-                      {pages.map((p: any, idx: number) => (
+                      {pages.map((p: SegregatedPage, idx: number) => (
                         <button
                           key={p.id}
                           onClick={() => { handleSwitchPage(p.id); setMobileFabOpen(false); }}
@@ -1382,7 +1383,7 @@ function BibleContent() {
               </div>
             ) : bookmarksList.length > 0 ? (
               <div className="space-y-3">
-                {bookmarksList.map((bm: any) => (
+                {bookmarksList.map((bm: Bookmark) => (
                   <div
                     key={bm.id}
                     className="flex items-center justify-between p-4 rounded-xl bg-surface-container-lowest border border-outline-variant/15 hover:border-primary/30 transition-all group"
@@ -1477,7 +1478,7 @@ function BibleContent() {
               </div>
             ) : notesList.length > 0 ? (
               <div className="space-y-3">
-                {notesList.map((note: any) => (
+                {notesList.map((note: Note) => (
                   <div
                     key={note.id}
                     className="p-4 rounded-xl bg-surface-container-lowest border border-outline-variant/15 group"

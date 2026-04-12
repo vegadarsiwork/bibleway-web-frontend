@@ -3,9 +3,10 @@
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import { fetchAPI } from "../lib/api";
+import type { UserListItem, FollowRelationship } from "../types";
 
 export default function RecommendedPeople() {
-  const [people, setPeople] = useState<any[]>([]);
+  const [people, setPeople] = useState<UserListItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [followingIds, setFollowingIds] = useState<Set<string>>(new Set());
   const [loadingFollow, setLoadingFollow] = useState<string | null>(null);
@@ -17,14 +18,14 @@ export default function RecommendedPeople() {
         const currentUserId = localStorage.getItem("user_id");
         const res = await fetchAPI("/accounts/users/search/?q=");
         const data = res?.data?.results ?? res?.results ?? res?.data ?? [];
-        const filtered = Array.isArray(data) ? data.filter((u: any) => u.id !== currentUserId) : [];
+        const filtered = Array.isArray(data) ? data.filter((u: UserListItem) => u.id !== currentUserId) : [];
         setPeople(filtered.slice(0, 5));
         // Pre-populate follow state from current user's following list
         if (currentUserId) {
           try {
             const followingRes = await fetchAPI(`/accounts/users/${currentUserId}/following/`);
             const followingRaw = followingRes?.data?.results || followingRes?.results || followingRes?.data || [];
-            const ids = new Set<string>(followingRaw.map((r: any) => r.following?.id).filter(Boolean));
+            const ids = new Set<string>(followingRaw.map((r: FollowRelationship) => r.following?.id).filter(Boolean));
             setFollowingIds(ids);
           } catch { /* ignore */ }
         }
@@ -63,7 +64,7 @@ export default function RecommendedPeople() {
         </div>
       ) : people.length > 0 ? (
         <div className="space-y-3">
-          {people.map((person: any) => (
+          {people.map((person) => (
             <div key={person.id} className="flex items-center gap-3">
               <Link href={`/user/${person.id}`} className="w-9 h-9 rounded-full overflow-hidden bg-surface-container-high flex items-center justify-center shrink-0">
                 {person.profile_photo ? (

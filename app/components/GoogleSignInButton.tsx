@@ -48,17 +48,18 @@ export default function GoogleSignInButton() {
       } else {
         router.push("/");
       }
-    } catch (err: any) {
+    } catch (err: unknown) {
       // User closed the popup — not an error
+      const firebaseErr = err as { code?: string; message?: string };
       if (
-        err?.code === "auth/popup-closed-by-user" ||
-        err?.code === "auth/cancelled-popup-request" ||
-        err?.message === "cancelled"
+        firebaseErr?.code === "auth/popup-closed-by-user" ||
+        firebaseErr?.code === "auth/cancelled-popup-request" ||
+        firebaseErr?.message === "cancelled"
       ) {
         setLoading(false);
         return;
       }
-      setError(err.message || "Google sign-in failed. Please try again.");
+      setError(err instanceof Error ? err.message : "Google sign-in failed. Please try again.");
     } finally {
       setLoading(false);
     }

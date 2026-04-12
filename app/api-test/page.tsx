@@ -22,7 +22,7 @@ export default function ApiTestPage() {
     router.replace("/");
     return null;
   }
-  const [response, setResponse] = useState<any>(null);
+  const [response, setResponse] = useState<Record<string, unknown> | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [activeEndpoint, setActiveEndpoint] = useState<string | null>(null);
@@ -60,8 +60,8 @@ export default function ApiTestPage() {
       } else {
         throw new Error(JSON.stringify(data));
       }
-    } catch (e: any) {
-      setError(e.message);
+    } catch (e: unknown) {
+      setError(e instanceof Error ? e.message : String(e));
     } finally {
       setLoading(false);
     }
@@ -75,8 +75,8 @@ export default function ApiTestPage() {
     try {
       const res = await fetchAPI(path);
       setResponse(res);
-    } catch (err: any) {
-      setError(err.message || "Unknown error occurred");
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : "Unknown error occurred");
     } finally {
       setLoading(false);
     }

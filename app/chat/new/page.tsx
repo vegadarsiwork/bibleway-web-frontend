@@ -60,8 +60,8 @@ export default function NewChatPage() {
         return;
       }
       setError("Failed to start conversation. Please try again.");
-    } catch (err: any) {
-      const msg = err?.message || "Failed to start conversation.";
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : "Failed to start conversation.";
       setError(msg.includes("API error") ? "Something went wrong. Please try again." : msg);
     }
     setStarting(null);

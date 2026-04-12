@@ -4,8 +4,9 @@ import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { fetchAPI } from "../lib/api";
 import { useTranslation } from "../lib/i18n";
+import type { Notification } from "../types";
 
-function getNotificationLink(n: any): string | null {
+function getNotificationLink(n: Notification): string | null {
   const data = n.data || {};
   switch (n.notification_type) {
     case "new_message":
@@ -31,7 +32,7 @@ export default function NotificationDropdown() {
   const router = useRouter();
   const [isOpen, setIsOpen] = useState(false);
   const [unreadCount, setUnreadCount] = useState(0);
-  const [notifications, setNotifications] = useState<any[]>([]);
+  const [notifications, setNotifications] = useState<Notification[]>([]);
   const [loading, setLoading] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
 

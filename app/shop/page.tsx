@@ -9,7 +9,7 @@ import { useTranslation } from "../lib/i18n";
 
 export default function ShopPage() {
   const { t } = useTranslation();
-  const [products, setProducts] = useState<any[]>([]);
+  const [products, setProducts] = useState<import("../types").ProductListItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
   const [debouncedQuery, setDebouncedQuery] = useState("");
@@ -21,7 +21,7 @@ export default function ShopPage() {
   }, [searchQuery]);
 
   // Server-side search — also reload all products when query is cleared
-  const [allProducts, setAllProducts] = useState<any[]>([]);
+  const [allProducts, setAllProducts] = useState<import("../types").ProductListItem[]>([]);
   useEffect(() => {
     if (!debouncedQuery.trim()) {
       // Restore full product list when search is cleared

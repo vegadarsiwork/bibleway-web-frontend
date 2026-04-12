@@ -364,11 +364,11 @@ function BoostContent() {
             );
 
             router.push("/boost/analytics");
-          } catch (verifyErr: any) {
+          } catch (verifyErr: unknown) {
             showToast(
               "error",
               "Verification Failed",
-              verifyErr?.message || "Payment succeeded but verification failed. Contact support.",
+              verifyErr instanceof Error ? verifyErr.message : "Payment succeeded but verification failed. Contact support.",
             );
           }
         },
@@ -379,8 +379,8 @@ function BoostContent() {
           // User closed checkout
         },
       });
-    } catch (err: any) {
-      setError(err?.message || "Something went wrong. Please try again.");
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : "Something went wrong. Please try again.");
     } finally {
       setSubmitting(false);
     }

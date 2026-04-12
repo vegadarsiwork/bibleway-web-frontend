@@ -9,7 +9,7 @@ import { useToast } from "../../components/Toast";
 
 export default function DownloadsPage() {
   const { showToast } = useToast();
-  const [purchases, setPurchases] = useState<any[]>([]);
+  const [purchases, setPurchases] = useState<import("../../types").Purchase[]>([]);
   const [loading, setLoading] = useState(true);
   const [downloadingId, setDownloadingId] = useState<string | null>(null);
 

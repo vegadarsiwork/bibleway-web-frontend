@@ -57,8 +57,8 @@ function LoginForm() {
       }
 
       router.push("/");
-    } catch (err: any) {
-      const msg = err.message || "Invalid email or password.";
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : "Invalid email or password.";
       // Django's default SimpleJWT response for invalid creds or inactive (unverified) users
       if (
         msg.toLowerCase().includes("no active account found") ||

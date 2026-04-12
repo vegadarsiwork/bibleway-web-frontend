@@ -9,6 +9,7 @@ import { containsProfanity, getProfanityWarning } from "../../lib/contentFilter"
 import { useToast } from "../../components/Toast";
 
 import { REACTIONS } from "../../lib/constants";
+import type { Post, Comment, Reply, EmojiType } from "../../types";
 
 function PostDetailCarousel({ media }: { media: { id?: string; file: string; media_type: string }[] }) {
   const [activeIndex, setActiveIndex] = useState(0);
@@ -70,9 +71,9 @@ function PostDetailCarousel({ media }: { media: { id?: string; file: string; med
 export default function SinglePostPage() {
   const params = useParams();
   const postId = params.id as string;
-  const [post, setPost] = useState<any>(null);
+  const [post, setPost] = useState<Post | null>(null);
   const [loading, setLoading] = useState(true);
-  const [comments, setComments] = useState<any[]>([]);
+  const [comments, setComments] = useState<Comment[]>([]);
   const [commentsLoading, setCommentsLoading] = useState(false);
   const [newComment, setNewComment] = useState("");
   const [postingComment, setPostingComment] = useState(false);
@@ -83,7 +84,7 @@ export default function SinglePostPage() {
   const [replyingTo, setReplyingTo] = useState<string | null>(null);
   const [replyText, setReplyText] = useState("");
   const [postingReply, setPostingReply] = useState(false);
-  const [repliesData, setRepliesData] = useState<Record<string, any[]>>({});
+  const [repliesData, setRepliesData] = useState<Record<string, Reply[]>>({});
   const [repliesLoading, setRepliesLoading] = useState<string | null>(null);
   const [toast, setToast] = useState<string | null>(null);
   const [editingPost, setEditingPost] = useState(false);
@@ -143,11 +144,11 @@ export default function SinglePostPage() {
     const isRemoving = prevReaction === emojiType;
 
     // Optimistic update
-    setPost((p: any) => ({
+    setPost((p) => p ? ({
       ...p,
       reaction_count: isRemoving ? Math.max(0, prevCount - 1) : prevCount + (prevReaction ? 0 : 1),
-      user_reaction: isRemoving ? null : emojiType,
-    }));
+      user_reaction: isRemoving ? null : emojiType as EmojiType,
+    }) : p);
 
     try {
       const res = await fetchAPI(`/social/posts/${postId}/react/`, {
@@ -156,14 +157,14 @@ export default function SinglePostPage() {
       });
       const wasRemoved = res?.message === "Reaction removed.";
       const serverCount = res?.data?.reaction_count;
-      setPost((p: any) => ({
+      setPost((p) => p ? ({
         ...p,
         reaction_count: serverCount !== undefined ? serverCount : p.reaction_count,
-        user_reaction: wasRemoved ? null : emojiType,
-      }));
+        user_reaction: wasRemoved ? null : emojiType as EmojiType,
+      }) : p);
     } catch {
       // Revert on error
-      setPost((p: any) => ({ ...p, reaction_count: prevCount, user_reaction: prevReaction }));
+      setPost((p) => p ? ({ ...p, reaction_count: prevCount, user_reaction: prevReaction }) : p);
     } finally {
       setReacting(false);
     }
@@ -179,7 +180,7 @@ export default function SinglePostPage() {
       });
       setNewComment("");
       await loadComments();
-      setPost((p: any) => ({ ...p, comment_count: (p.comment_count || 0) + 1 }));
+      setPost((p) => p ? ({ ...p, comment_count: (p.comment_count || 0) + 1 }) : p);
     } catch { /* failed to post comment */ } finally {
       setPostingComment(false);
     }
@@ -190,7 +191,7 @@ export default function SinglePostPage() {
     try {
       await fetchAPI(`/social/comments/${commentId}/`, { method: "DELETE" });
       setComments((prev) => prev.filter((c) => c.id !== commentId));
-      setPost((p: any) => ({ ...p, comment_count: Math.max(0, (p.comment_count || 0) - 1) }));
+      setPost((p) => p ? ({ ...p, comment_count: Math.max(0, (p.comment_count || 0) - 1) }) : p);
     } catch { /* failed to delete comment */ }
   }
 
@@ -239,7 +240,7 @@ export default function SinglePostPage() {
     setSavingPost(true);
     try {
       await fetchAPI(`/social/posts/${postId}/`, { method: "PATCH", body: JSON.stringify({ text_content: trimmed }) });
-      setPost((p: any) => ({ ...p, text_content: trimmed }));
+      setPost((p) => p ? ({ ...p, text_content: trimmed }) : p);
       setEditingPost(false);
       showToast("success", "Updated", "Your post has been updated.");
     } catch {
@@ -403,7 +404,7 @@ export default function SinglePostPage() {
             <div className="flex justify-center py-4"><div className="animate-spin rounded-full h-5 w-5 border-t-2 border-primary"></div></div>
           ) : (
             <div className="space-y-3">
-              {comments.map((c: any) => (
+              {comments.map((c) => (
                 <div key={c.id}>
                   <div className="bg-surface-container-low rounded-xl px-4 py-3">
                     <div className="flex justify-between items-start">
@@ -450,7 +451,7 @@ export default function SinglePostPage() {
                     <div className="ml-8 mt-2 space-y-2">
                       {repliesLoading === c.id ? (
                         <div className="flex justify-center py-1"><div className="animate-spin rounded-full h-4 w-4 border-t-2 border-primary"></div></div>
-                      ) : (repliesData[c.id] || []).map((r: any) => (
+                      ) : (repliesData[c.id] || []).map((r) => (
                         <div key={r.id} className="bg-surface-container-high rounded-lg px-3 py-1.5">
                           <Link href={`/user/${r.user?.id}`} className="font-semibold text-xs hover:text-primary">{r.user?.full_name || "User"}</Link>
                           <p className="text-xs text-on-surface-variant">{r.text}</p>

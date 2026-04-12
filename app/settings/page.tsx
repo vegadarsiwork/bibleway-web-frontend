@@ -10,6 +10,13 @@ import { useTheme } from "../lib/ThemeContext";
 import { useToast } from "../components/Toast";
 
 import { LANGUAGES } from "../lib/constants";
+import type { BlockRelationship, Purchase, Bookmark, Note } from "../types";
+
+interface FollowRequest {
+  id: string;
+  from_user: { id: string; full_name: string; profile_photo: string | null };
+  created_at: string;
+}
 
 export default function SettingsPage() {
   const router = useRouter();
@@ -22,15 +29,15 @@ export default function SettingsPage() {
   const [savingLang, setSavingLang] = useState(false);
   const [privacy, setPrivacy] = useState({ account_visibility: "public", hide_followers_list: false });
   const [savingPrivacy, setSavingPrivacy] = useState(false);
-  const [blockedUsers, setBlockedUsers] = useState<any[]>([]);
+  const [blockedUsers, setBlockedUsers] = useState<BlockRelationship[]>([]);
   const [loadingBlocked, setLoadingBlocked] = useState(false);
-  const [followRequests, setFollowRequests] = useState<any[]>([]);
+  const [followRequests, setFollowRequests] = useState<FollowRequest[]>([]);
   const [loadingRequests, setLoadingRequests] = useState(false);
-  const [purchases, setPurchases] = useState<any[]>([]);
+  const [purchases, setPurchases] = useState<Purchase[]>([]);
   const [loadingPurchases, setLoadingPurchases] = useState(false);
-  const [bookmarks, setBookmarks] = useState<any[]>([]);
+  const [bookmarks, setBookmarks] = useState<Bookmark[]>([]);
   const [loadingBookmarks, setLoadingBookmarks] = useState(false);
-  const [notes, setNotes] = useState<any[]>([]);
+  const [notes, setNotes] = useState<Note[]>([]);
   const [loadingNotes, setLoadingNotes] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
 
@@ -283,7 +290,7 @@ export default function SettingsPage() {
             <SettingsRow icon="shopping_bag" label={t("settings.myPurchases")} panel="purchases" />
             <Panel panel="purchases">
               {loadingPurchases ? <Spinner /> : purchases.length > 0 ? (
-                <div className="space-y-2">{purchases.map((p: any) => {
+                <div className="space-y-2">{purchases.map((p) => {
                   const product = p.product || p;
                   return (
                     <div key={p.id} className="flex items-center justify-between py-2 px-3 rounded-xl hover:bg-surface-container-high transition-all">
@@ -311,7 +318,7 @@ export default function SettingsPage() {
             <SettingsRow icon="bookmark" label={t("settings.bookmarks")} panel="bookmarks" />
             <Panel panel="bookmarks">
               {loadingBookmarks ? <Spinner /> : bookmarks.length > 0 ? (
-                <div className="space-y-1">{bookmarks.map((bm: any, i: number) => (
+                <div className="space-y-1">{bookmarks.map((bm, i: number) => (
                   <div key={bm.id || i} className="flex items-center gap-3 py-2 px-3 rounded-xl hover:bg-surface-container-high transition-all">
                     <span className="material-symbols-outlined text-primary text-sm">bookmark</span>
                     <span className="text-sm text-on-surface">{bm.reference || bm.chapter_id || `Bookmark ${i + 1}`}</span>
@@ -326,7 +333,7 @@ export default function SettingsPage() {
             <SettingsRow icon="edit_note" label={t("settings.notes")} panel="notes" />
             <Panel panel="notes">
               {loadingNotes ? <Spinner /> : notes.length > 0 ? (
-                <div className="space-y-2">{notes.map((n: any, i: number) => (
+                <div className="space-y-2">{notes.map((n, i: number) => (
                   <div key={n.id || i} className="py-2 px-3 rounded-xl bg-surface-container-high/50">
                     <p className="text-xs text-primary font-semibold">{n.reference || n.chapter_id || "Chapter"}</p>
                     <p className="text-sm text-on-surface-variant">{n.text}</p>

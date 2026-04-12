@@ -7,21 +7,29 @@ import { fetchAPI } from "../lib/api";
 import Shimmer from "../components/Shimmer";
 import { useToast } from "../components/Toast";
 import { useTranslation } from "../lib/i18n";
+import type { PostAnalytics, PostBoost, BoostAnalyticSnapshot } from "../types";
+
+interface OverviewAnalytics {
+  total_views: number;
+  total_reactions: number;
+  total_comments: number;
+  top_posts: { id: string; text_content?: string; title?: string; view_count?: number }[];
+}
 
 export default function AnalyticsPage() {
   const { t } = useTranslation();
   const { showToast } = useToast();
-  const [analytics, setAnalytics] = useState<any>(null);
-  const [boosts, setBoosts] = useState<any[]>([]);
+  const [analytics, setAnalytics] = useState<OverviewAnalytics | null>(null);
+  const [boosts, setBoosts] = useState<PostBoost[]>([]);
   const [loading, setLoading] = useState(true);
   const [boostPostId, setBoostPostId] = useState("");
   const [boostBudget, setBoostBudget] = useState("");
   const [creatingBoost, setCreatingBoost] = useState(false);
-  const [selectedPost, setSelectedPost] = useState<any>(null);
-  const [postAnalytics, setPostAnalytics] = useState<any>(null);
+  const [selectedPost, setSelectedPost] = useState<string | null>(null);
+  const [postAnalytics, setPostAnalytics] = useState<PostAnalytics | null>(null);
   const [postAnalyticsLoading, setPostAnalyticsLoading] = useState(false);
-  const [selectedBoost, setSelectedBoost] = useState<any>(null);
-  const [boostAnalytics, setBoostAnalytics] = useState<any>(null);
+  const [selectedBoost, setSelectedBoost] = useState<string | null>(null);
+  const [boostAnalytics, setBoostAnalytics] = useState<BoostAnalyticSnapshot | null>(null);
   const [boostAnalyticsLoading, setBoostAnalyticsLoading] = useState(false);
 
   useEffect(() => {
@@ -54,8 +62,8 @@ export default function AnalyticsPage() {
       setBoostBudget("");
       const res = await fetchAPI("/analytics/boosts/list/").catch(() => null);
       if (res) setBoosts(res?.data?.results || res?.results || res?.data || []);
-    } catch (err: any) {
-      showToast("error", "Boost Failed", err.message || "Failed to create boost.");
+    } catch (err: unknown) {
+      showToast("error", "Boost Failed", err instanceof Error ? err.message : "Failed to create boost.");
     } finally {
       setCreatingBoost(false);
     }
@@ -124,7 +132,7 @@ export default function AnalyticsPage() {
           <div>
             <h2 className="font-headline text-2xl mb-6">Top Posts</h2>
             <div className="space-y-3">
-              {analytics.top_posts.map((post: any) => (
+              {analytics.top_posts.map((post) => (
                 <button
                   key={post.id}
                   onClick={() => viewPostAnalytics(post.id)}
@@ -208,7 +216,7 @@ export default function AnalyticsPage() {
           {/* Boosts List */}
           {boosts.length > 0 ? (
             <div className="space-y-3">
-              {boosts.map((boost: any) => (
+              {boosts.map((boost) => (
                 <button key={boost.id} onClick={async () => {
                   setSelectedBoost(boost.id);
                   setBoostAnalyticsLoading(true);

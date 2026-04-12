@@ -32,8 +32,8 @@ function ConfirmPasswordResetForm() {
       setTimeout(() => {
         router.push("/login?message=reset_success");
       }, 2000);
-    } catch (err: any) {
-      setError(err.message || "Failed to reset password. Please check your code and try again.");
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : "Failed to reset password. Please check your code and try again.");
     } finally {
       setLoading(false);
     }

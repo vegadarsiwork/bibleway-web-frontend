@@ -29,8 +29,8 @@ function VerifyEmailForm() {
       });
       // Redirect to login with success message
       router.push("/login?registered=1");
-    } catch (err: any) {
-      setError(err.message || "Verification failed. Please check your code.");
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : "Verification failed. Please check your code.");
     } finally {
       setLoading(false);
     }
@@ -47,8 +47,8 @@ function VerifyEmailForm() {
         body: JSON.stringify({ email }),
       });
       setMessage("A new verification code has been sent to your email.");
-    } catch (err: any) {
-      setError(err.message || "Failed to resend code.");
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : "Failed to resend code.");
     } finally {
       setResending(false);
     }

@@ -9,13 +9,14 @@ import { containsProfanity, getProfanityWarning } from "../../lib/contentFilter"
 import { useToast } from "../../components/Toast";
 
 import { REACTIONS } from "../../lib/constants";
+import type { Prayer, Comment, Reply, EmojiType } from "../../types";
 
 export default function SinglePrayerPage() {
   const params = useParams();
   const prayerId = params.id as string;
-  const [prayer, setPrayer] = useState<any>(null);
+  const [prayer, setPrayer] = useState<Prayer | null>(null);
   const [loading, setLoading] = useState(true);
-  const [comments, setComments] = useState<any[]>([]);
+  const [comments, setComments] = useState<Comment[]>([]);
   const [commentsLoading, setCommentsLoading] = useState(false);
   const [newComment, setNewComment] = useState("");
   const [postingComment, setPostingComment] = useState(false);
@@ -26,7 +27,7 @@ export default function SinglePrayerPage() {
   const [replyingTo, setReplyingTo] = useState<string | null>(null);
   const [replyText, setReplyText] = useState("");
   const [postingReply, setPostingReply] = useState(false);
-  const [repliesData, setRepliesData] = useState<Record<string, any[]>>({});
+  const [repliesData, setRepliesData] = useState<Record<string, Reply[]>>({});
   const [repliesLoading, setRepliesLoading] = useState<string | null>(null);
   const [toast, setToast] = useState<string | null>(null);
   const [editingCommentId, setEditingCommentId] = useState<string | null>(null);
@@ -82,11 +83,11 @@ export default function SinglePrayerPage() {
     const isRemoving = prevReaction === emojiType;
 
     // Optimistic update
-    setPrayer((p: any) => ({
+    setPrayer((p) => p ? ({
       ...p,
       reaction_count: isRemoving ? Math.max(0, prevCount - 1) : prevCount + (prevReaction ? 0 : 1),
-      user_reaction: isRemoving ? null : emojiType,
-    }));
+      user_reaction: isRemoving ? null : emojiType as EmojiType,
+    }) : p);
 
     try {
       const res = await fetchAPI(`/social/prayers/${prayerId}/react/`, {
@@ -95,14 +96,14 @@ export default function SinglePrayerPage() {
       });
       const wasRemoved = res?.message === "Reaction removed.";
       const serverCount = res?.data?.reaction_count;
-      setPrayer((p: any) => ({
+      setPrayer((p) => p ? ({
         ...p,
         reaction_count: serverCount !== undefined ? serverCount : p.reaction_count,
-        user_reaction: wasRemoved ? null : emojiType,
-      }));
+        user_reaction: wasRemoved ? null : emojiType as EmojiType,
+      }) : p);
     } catch {
       // Revert on error
-      setPrayer((p: any) => ({ ...p, reaction_count: prevCount, user_reaction: prevReaction }));
+      setPrayer((p) => p ? ({ ...p, reaction_count: prevCount, user_reaction: prevReaction }) : p);
     } finally {
       setReacting(false);
     }
@@ -118,7 +119,7 @@ export default function SinglePrayerPage() {
       });
       setNewComment("");
       await loadComments();
-      setPrayer((p: any) => ({ ...p, comment_count: (p.comment_count || 0) + 1 }));
+      setPrayer((p) => p ? ({ ...p, comment_count: (p.comment_count || 0) + 1 }) : p);
     } catch { /* failed to post comment */ } finally {
       setPostingComment(false);
     }
@@ -129,7 +130,7 @@ export default function SinglePrayerPage() {
     try {
       await fetchAPI(`/social/comments/${commentId}/`, { method: "DELETE" });
       setComments((prev) => prev.filter((c) => c.id !== commentId));
-      setPrayer((p: any) => ({ ...p, comment_count: Math.max(0, (p.comment_count || 0) - 1) }));
+      setPrayer((p) => p ? ({ ...p, comment_count: Math.max(0, (p.comment_count || 0) - 1) }) : p);
     } catch { /* failed to delete comment */ }
   }
 
@@ -286,7 +287,7 @@ export default function SinglePrayerPage() {
             <div className="flex justify-center py-4"><div className="animate-spin rounded-full h-5 w-5 border-t-2 border-primary"></div></div>
           ) : (
             <div className="space-y-3">
-              {comments.map((c: any) => (
+              {comments.map((c) => (
                 <div key={c.id}>
                   <div className="bg-surface-container-lowest rounded-xl px-4 py-3">
                     <div className="flex justify-between items-start">
@@ -333,7 +334,7 @@ export default function SinglePrayerPage() {
                     <div className="ml-8 mt-2 space-y-2">
                       {repliesLoading === c.id ? (
                         <div className="flex justify-center py-1"><div className="animate-spin rounded-full h-4 w-4 border-t-2 border-primary"></div></div>
-                      ) : (repliesData[c.id] || []).map((r: any) => (
+                      ) : (repliesData[c.id] || []).map((r) => (
                         <div key={r.id} className="bg-surface-container-high rounded-lg px-3 py-1.5">
                           <Link href={`/user/${r.user?.id}`} className="font-semibold text-xs hover:text-primary">{r.user?.full_name || "User"}</Link>
                           <p className="text-xs text-on-surface-variant">{r.text}</p>

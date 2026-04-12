@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState, useCallback } from "react";
 
-type MessageHandler = (data: any) => void;
+type MessageHandler = (data: { type: string; data: Record<string, unknown> }) => void;
 
 interface UseWebSocketOptions {
   onMessage?: MessageHandler;
@@ -91,7 +91,7 @@ export function useWebSocket(options: UseWebSocketOptions = {}) {
     };
   }, [connect]);
 
-  const send = useCallback((action: string, data: Record<string, any> = {}): string | false => {
+  const send = useCallback((action: string, data: Record<string, unknown> = {}): string | false => {
     if (!wsRef.current || wsRef.current.readyState !== WebSocket.OPEN) return false;
     const requestId = crypto.randomUUID();
     wsRef.current.send(JSON.stringify({ action, request_id: requestId, ...data }));

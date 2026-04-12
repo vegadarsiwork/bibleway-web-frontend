@@ -97,7 +97,7 @@ export default function CompleteProfilePage() {
       try {
         const res = await fetchAPI(`/accounts/users/search/?q=${encodeURIComponent(value)}`);
         const results = res?.data?.results ?? res?.results ?? [];
-        const taken = results.some((u: any) => u.username?.toLowerCase() === value.toLowerCase());
+        const taken = results.some((u: { username?: string }) => u.username?.toLowerCase() === value.toLowerCase());
         setUsernameStatus(taken ? "taken" : "available");
       } catch {
         setUsernameStatus("idle");
@@ -187,8 +187,8 @@ export default function CompleteProfilePage() {
           setError("Failed to create account. Please try again.");
         }
       }
-    } catch (err: any) {
-      setError(err?.message || "Something went wrong. Please try again.");
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : "Something went wrong. Please try again.");
     } finally {
       setSubmitting(false);
     }

@@ -6,6 +6,13 @@ import { formatVerseRef } from "../bible/page";
 import { useToast } from "./Toast";
 
 import { useBookmarks, useAddBookmark, useRemoveBookmark, useHighlights, useRemoveHighlight, useNotes, useAddNote, useRemoveNote } from "../lib/hooks";
+import type { Bookmark, Highlight, Note } from "../types";
+
+interface StudySearchResult {
+  id: string;
+  title?: string;
+  chapter?: string;
+}
 
 // Hook definitions replace local states
 interface BibleStudyToolsProps {
@@ -22,7 +29,7 @@ export default function BibleStudyTools({ selectedBibleId, selectedChapterId, on
 
   // Search
   const [searchQuery, setSearchQuery] = useState("");
-  const [searchResults, setSearchResults] = useState<any[]>([]);
+  const [searchResults, setSearchResults] = useState<StudySearchResult[]>([]);
   const [searching, setSearching] = useState(false);
 
   // Query Hooks
@@ -56,7 +63,7 @@ export default function BibleStudyTools({ selectedBibleId, selectedChapterId, on
 
   function addBookmark() {
     if (!selectedChapterId) return;
-    const exists = bookmarks.some((bm: any) => bm.verse_reference === selectedChapterId);
+    const exists = bookmarks.some((bm: Bookmark) => bm.verse_reference === selectedChapterId);
     if (exists) return;
     addBookmarkMut.mutate({ 
       bookmark_type: "api_bible", 
@@ -89,7 +96,7 @@ export default function BibleStudyTools({ selectedBibleId, selectedChapterId, on
     setActivePanel(panel);
   }
 
-  const isBookmarked = bookmarks.some((bm: any) => bm.verse_reference === selectedChapterId);
+  const isBookmarked = bookmarks.some((bm: Bookmark) => bm.verse_reference === selectedChapterId);
 
   return (
     <div className={`space-y-4 ${reversed ? 'flex flex-col-reverse gap-4 [&>*]:!mt-0' : ''}`}>
@@ -113,7 +120,7 @@ export default function BibleStudyTools({ selectedBibleId, selectedChapterId, on
       {selectedChapterId && (
         <div className="flex gap-2 flex-wrap items-center">
           <button
-            onClick={() => { if (isBookmarked) { const bm = bookmarks.find((b: any) => b.verse_reference === selectedChapterId); if (bm) removeBookmark(bm.id); } else addBookmark(); }}
+            onClick={() => { if (isBookmarked) { const bm = bookmarks.find((b: Bookmark) => b.verse_reference === selectedChapterId); if (bm) removeBookmark(bm.id); } else addBookmark(); }}
             className={`flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${isBookmarked ? "bg-primary/20 text-primary" : "bg-primary/10 text-primary hover:bg-primary/20"}`}
             title={isBookmarked ? "Remove bookmark" : "Bookmark this chapter"}
           >
@@ -139,7 +146,7 @@ export default function BibleStudyTools({ selectedBibleId, selectedChapterId, on
               </button>
             </form>
             <div className="max-h-48 overflow-y-auto custom-scrollbar space-y-1">
-              {searchResults.map((r: any, i: number) => (
+              {searchResults.map((r, i: number) => (
                 <button key={r.id || i} onClick={() => onNavigateToChapter?.(r.id || r.chapter)} className="w-full text-left flex items-center gap-2 px-3 py-2 rounded-lg hover:bg-surface-container-low transition-colors group">
                   <span className="material-symbols-outlined text-primary text-sm shrink-0">article</span>
                   <div className="min-w-0">
@@ -176,7 +183,7 @@ export default function BibleStudyTools({ selectedBibleId, selectedChapterId, on
             <div className="max-h-48 overflow-y-auto custom-scrollbar space-y-1">
               {bookmarksLoading ? (
                 <div className="flex justify-center py-6"><div className="animate-spin rounded-full h-5 w-5 border-2 border-primary/30 border-t-primary"></div></div>
-              ) : bookmarks.length > 0 ? bookmarks.map((bm: any) => (
+              ) : bookmarks.length > 0 ? bookmarks.map((bm: Bookmark) => (
                 <div key={bm.id} className="flex items-center justify-between px-3 py-2 rounded-lg hover:bg-surface-container-low transition-colors group">
                   <button
                     onClick={() => onNavigateToChapter?.(bm.verse_reference)}
@@ -212,7 +219,7 @@ export default function BibleStudyTools({ selectedBibleId, selectedChapterId, on
             <div className="max-h-48 overflow-y-auto custom-scrollbar space-y-1">
               {highlightsLoading ? (
                 <div className="flex justify-center py-6"><div className="animate-spin rounded-full h-5 w-5 border-2 border-primary/30 border-t-primary"></div></div>
-              ) : highlights.length > 0 ? highlights.map((hl: any) => (
+              ) : highlights.length > 0 ? highlights.map((hl: Highlight & { selected_text?: string }) => (
                 <div key={hl.id} className="flex items-start justify-between px-3 py-2 rounded-lg hover:bg-surface-container-low transition-colors group">
                   <button
                     onClick={() => onNavigateToChapter?.(hl.verse_reference)}
@@ -263,7 +270,7 @@ export default function BibleStudyTools({ selectedBibleId, selectedChapterId, on
             <div className="max-h-48 overflow-y-auto custom-scrollbar space-y-1">
               {notesLoading ? (
                 <div className="flex justify-center py-6"><div className="animate-spin rounded-full h-5 w-5 border-2 border-primary/30 border-t-primary"></div></div>
-              ) : notes.length > 0 ? notes.map((note: any) => (
+              ) : notes.length > 0 ? notes.map((note: Note) => (
                 <div key={note.id} className="px-3 py-2 rounded-lg hover:bg-surface-container-low transition-colors group">
                   <div className="flex items-center justify-between">
                     <button onClick={() => onNavigateToChapter?.(note.verse_reference)} className="text-xs text-primary font-semibold hover:text-primary/80 transition-colors">

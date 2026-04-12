@@ -14,11 +14,12 @@ import VerseOnboarding from "./components/VerseOnboarding";
 import VerseShareDropdown from "./components/VerseShareCard";
 import { useToast } from "./components/Toast";
 import { REACTIONS, VERSE_BACKGROUNDS } from "./lib/constants";
-import { mapFeedItem } from "./lib/mapFeedItem";
+import { mapFeedItem, FeedItem } from "./lib/mapFeedItem";
+import type { Post, Prayer } from "./types";
 
 export default function HomePage() {
   const [activeTab, setActiveTab] = useState<"post" | "prayer">("post");
-  const [feedPosts, setFeedPosts] = useState<any[]>([]);
+  const [feedPosts, setFeedPosts] = useState<FeedItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [feedError, setFeedError] = useState<string | null>(null);
   const [verseData, setVerseData] = useState<{ text: string; reference: string } | null>(null);
@@ -98,8 +99,8 @@ export default function HomePage() {
         fetchAPI("/social/prayers/").catch(() => null)
       ]);
 
-      const posts = (postsRes?.data?.results ?? postsRes?.results ?? []).map((p: any) => mapFeedItem(p, "post"));
-      const prayers = (prayersRes?.data?.results ?? prayersRes?.results ?? []).map((p: any) => mapFeedItem(p, "prayer"));
+      const posts = (postsRes?.data?.results ?? postsRes?.results ?? []).map((p: Post) => mapFeedItem(p, "post"));
+      const prayers = (prayersRes?.data?.results ?? prayersRes?.results ?? []).map((p: Prayer) => mapFeedItem(p, "prayer"));
 
       // Track pagination cursor from posts response
       const nextUrl = postsRes?.data?.next ?? postsRes?.next ?? null;
@@ -272,12 +273,12 @@ export default function HomePage() {
       const endpoint = `/social/posts/${params}`;
       const res = await fetchAPI(endpoint);
 
-      const newPosts = (res?.data?.results ?? res?.results ?? []).map((p: any) => mapFeedItem(p, "post"));
+      const newPosts = (res?.data?.results ?? res?.results ?? []).map((p: Post) => mapFeedItem(p, "post"));
       const newNextUrl = res?.data?.next ?? res?.next ?? null;
       setNextPageUrl(newNextUrl);
       setFeedPosts((prev) => {
         const existingIds = new Set(prev.map((p) => p.id));
-        const unique = newPosts.filter((p: any) => !existingIds.has(p.id));
+        const unique = newPosts.filter((p: FeedItem) => !existingIds.has(p.id));
         return [...prev, ...unique];
       });
     } catch { /* failed to load more */ } finally {

@@ -38,7 +38,8 @@ import am from "./locales/am.json";
 import yo from "./locales/yo.json";
 import zu from "./locales/zu.json";
 
-const locales: Record<string, any> = {
+type TranslationDict = Record<string, string | Record<string, unknown>>;
+const locales: Record<string, TranslationDict> = {
   en, es, pt, fr, de, it, nl, pl, ro, hu, cs, hr, el, ru, uk,
   ar, he, tr, hi, bn, ta, te, ml, zh, ja, ko, vi, th, id, fil, my,
   sw, am, yo, zu,
@@ -83,17 +84,17 @@ export function I18nProvider({ children }: { children: React.ReactNode }) {
 
   const t: TranslationFn = useCallback((key: string, fallback?: string) => {
     const parts = key.split(".");
-    let value: any = locales[locale];
+    let value: unknown = locales[locale];
     for (const part of parts) {
-      value = value?.[part];
+      value = (value as Record<string, unknown>)?.[part];
       if (value === undefined) break;
     }
     if (typeof value === "string") return value;
 
     // Fallback to English
-    let enValue: any = locales.en;
+    let enValue: unknown = locales.en;
     for (const part of parts) {
-      enValue = enValue?.[part];
+      enValue = (enValue as Record<string, unknown>)?.[part];
       if (enValue === undefined) break;
     }
     if (typeof enValue === "string") return enValue;

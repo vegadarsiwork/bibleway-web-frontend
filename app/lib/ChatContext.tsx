@@ -67,16 +67,16 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
   const joinedConvsRef = useRef<Set<string>>(new Set());
   // Map pending optimistic messages by key (convId:text:userId) → tempId for reliable WS replacement
   const pendingTempIds = useRef<Map<string, string>>(new Map());
-  const handleWsMessage = useCallback((data: any) => {
+  const handleWsMessage = useCallback((data: { type: string; data: Record<string, unknown> }) => {
     const currentUid = typeof window !== "undefined" ? localStorage.getItem("user_id") : null;
 
     switch (data.type) {
       case "message.sent": {
-        const msg = data.data;
-        const convId = msg.conversation_id;
+        const msg = data.data as Record<string, unknown>;
+        const convId = msg.conversation_id as string;
         if (!convId) break;
         const currentUserId = localStorage.getItem("user_id") || "";
-        const realId = msg.message_id || msg.id;
+        const realId = (msg.message_id || msg.id) as string;
         const isOwn = msg.sender_id === currentUserId;
 
         setMessages(prev => {
@@ -94,12 +94,12 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
             }
             if (idx === -1) {
               idx = existing.findLastIndex(
-                m => m.sender.id === currentUserId && m.text === msg.text
+                m => m.sender.id === currentUserId && m.text === (msg.text as string)
               );
             }
             if (idx !== -1) {
               const updated = [...existing];
-              updated[idx] = { ...updated[idx], id: realId, created_at: msg.created_at };
+              updated[idx] = { ...updated[idx], id: realId, created_at: msg.created_at as string };
               return { ...prev, [convId]: updated };
             }
             return prev;
@@ -109,10 +109,10 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
             ...prev,
             [convId]: [...existing, {
               id: realId,
-              sender: { id: msg.sender_id, full_name: msg.sender_name, profile_photo: msg.sender_photo || null },
-              text: msg.text,
+              sender: { id: msg.sender_id as string, full_name: msg.sender_name as string, profile_photo: (msg.sender_photo as string) || null },
+              text: msg.text as string,
               is_read: false,
-              created_at: msg.created_at,
+              created_at: msg.created_at as string,
             }],
           };
         });
@@ -122,26 +122,26 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
           // the conversation.updated event handles unread increments to avoid double-counting.
           setConversations(prev => prev.map(c =>
             c.id === convId
-              ? { ...c, last_message_text: msg.text, last_message_at: msg.created_at, updated_at: msg.created_at }
+              ? { ...c, last_message_text: msg.text as string, last_message_at: msg.created_at as string, updated_at: msg.created_at as string }
               : c
           ).sort((a, b) => new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime()));
         }
         break;
       }
       case "conversation.updated": {
-        const d = data.data;
+        const d = data.data as Record<string, unknown>;
         if (!d.conversation_id) break;
-        const alreadyInGroup = joinedConvsRef.current.has(d.conversation_id);
+        const alreadyInGroup = joinedConvsRef.current.has(d.conversation_id as string);
         setConversations(prev => {
           const updated = prev.map(c =>
             c.id === d.conversation_id
               ? {
                   ...c,
-                  last_message_text: d.last_message_text,
-                  last_message_at: d.last_message_at,
-                  last_message_is_mine: d.last_message_is_mine ?? false,
+                  last_message_text: d.last_message_text as string,
+                  last_message_at: d.last_message_at as string,
+                  last_message_is_mine: (d.last_message_is_mine as boolean) ?? false,
                   unread_count: alreadyInGroup ? c.unread_count : c.unread_count + 1,
-                  updated_at: d.last_message_at,
+                  updated_at: d.last_message_at as string,
                 }
               : c
           );
@@ -150,7 +150,7 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
         break;
       }
       case "typing": {
-        const { user_name, conversation_id, is_typing } = data.data;
+        const { user_name, conversation_id, is_typing } = data.data as { user_name: string; conversation_id: string; is_typing: boolean };
         if (is_typing) {
           setTypingUsers(prev => ({
             ...prev,
@@ -173,7 +173,7 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
         break;
       }
       case "read_receipt.updated": {
-        const { conversation_id, user_id } = data.data;
+        const { conversation_id, user_id } = data.data as { conversation_id: string; user_id: string };
         const currentUserId = localStorage.getItem("user_id") || "";
         if (user_id === currentUserId) {
           setConversations(prev => prev.map(c =>
@@ -194,9 +194,9 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
         break;
       }
       case "presence.status": {
-        const users = data.data?.users || [];
+        const users = (data.data?.users as { user_id: string; is_online: boolean }[]) || [];
         const map: Record<string, boolean> = {};
-        users.forEach((u: any) => { map[u.user_id] = u.is_online; });
+        users.forEach((u) => { map[u.user_id] = u.is_online; });
         setOnlineUsers(prev => ({ ...prev, ...map }));
         break;
       }
@@ -225,16 +225,16 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
     try {
       const res = await fetchAPI("/chat/conversations/");
       const convs = res?.data?.results || res?.results || [];
-      const sorted = (Array.isArray(convs) ? convs : []).sort((a: any, b: any) => {
+      const sorted = (Array.isArray(convs) ? convs : []).sort((a: Conversation, b: Conversation) => {
         const timeA = a.last_message_at || a.updated_at || "";
         const timeB = b.last_message_at || b.updated_at || "";
         return new Date(timeB).getTime() - new Date(timeA).getTime();
       });
       setConversations(sorted);
       // Show toast for new unread messages
-      const totalUnread = sorted.reduce((sum: number, c: any) => sum + (c.unread_count || 0), 0);
+      const totalUnread = sorted.reduce((sum: number, c: Conversation) => sum + (c.unread_count || 0), 0);
       if (totalUnread > prevUnreadRef.current && prevUnreadRef.current >= 0) {
-        const newest = sorted.find((c: any) => c.unread_count > 0);
+        const newest = sorted.find((c: Conversation) => c.unread_count > 0);
         if (newest) {
           const senderName = newest.other_user?.full_name || "Someone";
           const preview = newest.last_message_text?.match(/^\[sticker:.+\]$/) ? "Sent a sticker" : newest.last_message_text || "New message";
@@ -242,8 +242,8 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
         }
       }
       prevUnreadRef.current = totalUnread;
-    } catch (err: any) {
-      console.error("Failed to load conversations:", err.message);
+    } catch (err: unknown) {
+      console.error("Failed to load conversations:", err instanceof Error ? err.message : err);
     }
   }, [showToast]);
 
@@ -261,8 +261,8 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
       });
       setMessages(prev => ({ ...prev, [convId]: deduped }));
       joinedConvsRef.current.add(convId);
-    } catch (err: any) {
-      console.error("Failed to load messages:", err.message);
+    } catch (err: unknown) {
+      console.error("Failed to load messages:", err instanceof Error ? err.message : err);
     }
 
     // Join conversation group via WS for real-time updates
@@ -341,9 +341,10 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
           ),
         }));
       }
-    } catch (err: any) {
-      console.error("Send message failed:", err.message);
-      showToast("error", "Failed to send message", err.message || "Please try again.");
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : "Please try again.";
+      console.error("Send message failed:", message);
+      showToast("error", "Failed to send message", message);
       // Remove optimistic message on failure
       setMessages(prev => ({
         ...prev,
@@ -393,8 +394,8 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
         return conv;
       }
       throw new Error("No conversation returned from server.");
-    } catch (err: any) {
-      console.error("Start conversation failed:", err.message);
+    } catch (err: unknown) {
+      console.error("Start conversation failed:", err instanceof Error ? err.message : err);
       // Re-throw so the caller (new chat page) can show a specific error
       throw err;
     }

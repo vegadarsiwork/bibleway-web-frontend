@@ -27,8 +27,8 @@ export default function ForgotPasswordPage() {
       });
       // Redirect to confirm reset page
       router.push(`/confirm-password-reset?email=${encodeURIComponent(email)}`);
-    } catch (err: any) {
-      setError(err.message || "Failed to request password reset.");
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : "Failed to request password reset.");
     } finally {
       setLoading(false);
     }

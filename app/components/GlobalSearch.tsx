@@ -4,11 +4,45 @@ import { useState, useEffect, useRef } from "react";
 import Link from "next/link";
 import { fetchAPI } from "../lib/api";
 
+interface SearchUser {
+  id: string;
+  full_name: string;
+  profile_photo: string | null;
+}
+
+interface SearchProduct {
+  id: string;
+  title: string;
+  name?: string;
+  cover_image?: string;
+  image?: string;
+  is_free?: boolean;
+  price_tier?: string;
+  price?: number;
+}
+
+interface SearchBibleResult {
+  id: string;
+  reference?: string;
+  verse_reference?: string;
+  title?: string;
+  text?: string;
+  verse_text?: string;
+  snippet?: string;
+  content?: string;
+}
+
+interface SearchResults {
+  users: SearchUser[];
+  products: SearchProduct[];
+  bible: SearchBibleResult[];
+}
+
 export default function GlobalSearch() {
   const [isFocused, setIsFocused] = useState(false);
   const [query, setQuery] = useState("");
   const [debouncedQuery, setDebouncedQuery] = useState("");
-  const [results, setResults] = useState<{ users: any[]; products: any[]; bible: any[] }>({ users: [], products: [], bible: [] });
+  const [results, setResults] = useState<SearchResults>({ users: [], products: [], bible: [] });
   const [loading, setLoading] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -61,9 +95,9 @@ export default function GlobalSearch() {
           fetchAPI(`/bible/search/?q=${encodeURIComponent(debouncedQuery)}`),
         ]);
 
-        let users: any[] = [];
-        let products: any[] = [];
-        let bible: any[] = [];
+        let users: SearchUser[] = [];
+        let products: SearchProduct[] = [];
+        let bible: SearchBibleResult[] = [];
 
         if (usersRes.status === "fulfilled" && usersRes.value) {
           const val = usersRes.value;
@@ -192,7 +226,7 @@ export default function GlobalSearch() {
                       Bible
                     </h4>
                     <div className="divide-y divide-outline-variant/10">
-                      {results.bible.map((item: any, idx: number) => (
+                      {results.bible.map((item, idx: number) => (
                         <Link
                           href={`/bible?highlight=${encodeURIComponent(item.reference || item.verse_reference || "")}`}
                           key={item.id || idx}
@@ -229,7 +263,7 @@ export default function GlobalSearch() {
                       People
                     </h4>
                     <div className="divide-y divide-outline-variant/10">
-                      {results.users.map((user: any) => (
+                      {results.users.map((user) => (
                         <Link
                           href={`/user/${user.id}`}
                           key={user.id}
@@ -258,7 +292,7 @@ export default function GlobalSearch() {
                       Shop
                     </h4>
                     <div className="divide-y divide-outline-variant/10">
-                      {results.products.map((product: any) => (
+                      {results.products.map((product) => (
                         <Link
                           href={`/shop/product/${product.id}`}
                           key={product.id}

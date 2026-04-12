@@ -78,8 +78,8 @@ export default function RegisterPage() {
       });
       // Redirect to OTP verification page
       router.push(`/verify-email?email=${encodeURIComponent(formData.email)}`);
-    } catch (err: any) {
-      setError(err.message || "Registration failed. Please check your inputs.");
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : "Registration failed. Please check your inputs.");
     } finally {
       setLoading(false);
     }

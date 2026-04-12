@@ -7,13 +7,14 @@ import { fetchAPI } from "../lib/api";
 import ImageCropper from "../components/ImageCropper";
 import { useToast } from "../components/Toast";
 import { useTranslation } from "../lib/i18n";
+import type { UserProfile, Post, Prayer } from "../types";
 
 export default function ProfilePage() {
   const { t } = useTranslation();
   const { showToast } = useToast();
-  const [profile, setProfile] = useState<any>(null);
-  const [posts, setPosts] = useState<any[]>([]);
-  const [prayers, setPrayers] = useState<any[]>([]);
+  const [profile, setProfile] = useState<UserProfile | null>(null);
+  const [posts, setPosts] = useState<Post[]>([]);
+  const [prayers, setPrayers] = useState<Prayer[]>([]);
   const [activeTab, setActiveTab] = useState("posts");
   const [loading, setLoading] = useState(true);
 
@@ -75,11 +76,11 @@ export default function ProfilePage() {
         method: "PATCH",
         body: JSON.stringify(editForm),
       });
-      setProfile((prev: any) => ({ ...prev, ...res.data }));
+      setProfile((prev) => prev ? ({ ...prev, ...res.data }) : prev);
       setSaveMessage("Profile updated!");
       setTimeout(() => setSaveMessage(""), 3000);
-    } catch (err: any) {
-      setSaveMessage(err.message || "Failed to save");
+    } catch (err: unknown) {
+      setSaveMessage(err instanceof Error ? err.message : "Failed to save");
     } finally {
       setSaving(false);
     }
@@ -103,7 +104,7 @@ export default function ProfilePage() {
         method: "PATCH",
         body: formData,
       });
-      setProfile((prev: any) => ({ ...prev, profile_photo: res.data?.profile_photo || res.profile_photo }));
+      setProfile((prev) => prev ? ({ ...prev, profile_photo: res.data?.profile_photo || res.profile_photo }) : prev);
     } catch {
       showToast("error", "Upload Failed", "Failed to upload photo.");
     } finally {
